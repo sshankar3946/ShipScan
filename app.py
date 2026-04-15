@@ -9,7 +9,7 @@ from data_generator import generate_dataset
 from utils import run_feature_pipeline, load_file
 from model import run_detection
 
-st.set_page_config(page_title="RiskRadar — Fraud Detection", page_icon="📡", layout="wide")
+st.set_page_config(page_title="ShipScan — Fraud Detection", page_icon="🔍", layout="wide")
 
 st.markdown("""
 <style>
@@ -338,8 +338,8 @@ def df_to_excel(df):
 with st.sidebar:
     st.markdown("""
     <div style="text-align:center;padding:20px 0 10px">
-        <div style="font-size:2.5rem">📡</div>
-        <div style="font-size:1.3rem;font-weight:700;color:#ffffff">RiskRadar</div>
+        <div style="font-size:2.5rem">🔍</div>
+        <div style="font-size:1.3rem;font-weight:700;color:#ffffff">ShipScan</div>
         <div style="font-size:0.72rem;color:#475569;letter-spacing:0.1em">FRAUD DETECTION ENGINE</div>
     </div>
     """, unsafe_allow_html=True)
@@ -361,7 +361,7 @@ with st.sidebar:
 st.markdown("""
 <div style="padding:8px 0 24px">
     <h1 style="margin:0;font-size:2rem;background:linear-gradient(90deg,#60a5fa,#a78bfa);
-    -webkit-background-clip:text;-webkit-text-fill-color:transparent">📡 RiskRadar</h1>
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent">🔍 ShipScan</h1>
     <p style="color:#64748b;margin:4px 0 0;font-size:0.9rem">
     AI-powered fraud detection for eCommerce and UPI transactions</p>
 </div>
@@ -530,7 +530,7 @@ styled = (filtered[display_cols].head(200).style
           .format({"amount":"Rs.{:,.0f}","fraud_score_pct":"{:.1f}%"}))
 st.dataframe(styled, use_container_width=True, height=400)
 st.download_button("Download Results (Excel)", data=df_to_excel(filtered[display_cols]),
-                   file_name="riskradar_results.xlsx",
+                   file_name="shipscan_results.xlsx",
                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 # ── EXPLAINER ────────────────────────────────────────────────────────────────
