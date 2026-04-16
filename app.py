@@ -357,7 +357,17 @@ def apply_column_mapping(df, mapping):
     return df.rename(columns={v: k for k, v in mapping.items()})
 
 def fill_optional_cols(df):
-    for col, default in {"payment_method":"Unknown","device_id":"Unknown","ip_address":"0.0.0.0","location":"Unknown"}.items():
+    """Fill missing optional columns with safe defaults.
+    Also auto-generate transaction_id and user_id if not present —
+    so datasets like creditcard.csv work without manual mapping."""
+    # Auto-generate IDs if missing — no need to ask user
+    if "transaction_id" not in df.columns:
+        df["transaction_id"] = [f"TXN{str(i).zfill(6)}" for i in range(len(df))]
+    if "user_id" not in df.columns:
+        df["user_id"] = [f"USR{str(i % 500).zfill(4)}" for i in range(len(df))]
+    # Fill other optional columns
+    for col, default in {"payment_method":"Unknown","device_id":"Unknown",
+                         "ip_address":"0.0.0.0","location":"Unknown"}.items():
         if col not in df.columns:
             df[col] = default
     return df
@@ -365,31 +375,52 @@ def fill_optional_cols(df):
 def show_column_mapper(df):
     st.markdown("""
     <div class="mapper-box">
-        <h4 style="color:#60a5fa;margin:0 0 8px 0">Column Mapping Required</h4>
-        <p style="color:#94a3b8;margin:0">Your file uses different column names. Match them to our fields below.</p>
+        <h4 style="color:#60a5fa;margin:0 0 8px 0">Column Mapping</h4>
+        <p style="color:#94a3b8;margin:0 0 6px">
+        We auto-detected these matches. Only <strong style="color:#e2e8f0">amount</strong>
+        and <strong style="color:#e2e8f0">timestamp</strong> are required — everything
+        else will be filled automatically if skipped.</p>
     </div>
     """, unsafe_allow_html=True)
     auto_mapping = auto_map_columns(list(df.columns))
     file_columns = ["-- skip --"] + list(df.columns)
     final_mapping = {}
     col1, col2 = st.columns(2)
-    required_cols = list(COLUMN_ALIASES.keys())
+    # Only show mappable columns — transaction_id and user_id are auto-generated
+    mappable = ["amount","timestamp","payment_method","device_id","ip_address","location"]
+    # Also allow is_fraud mapping for ML training
+    if any("fraud" in c.lower() or "class" in c.lower() or "label" in c.lower()
+           for c in df.columns):
+        mappable.append("is_fraud")
+        COLUMN_ALIASES["is_fraud"] = ["is_fraud","fraud","class","label","fraudulent",
+                                      "Class","is_Fraud","isFraud"]
+    left_cols  = mappable[:4]
+    right_cols = mappable[4:]
     with col1:
-        for req in required_cols[:4]:
+        for req in left_cols:
             auto = auto_mapping.get(req,"-- skip --")
+            # For is_fraud, also check for "Class" specifically
+            if req == "is_fraud" and auto == "-- skip --":
+                for c in df.columns:
+                    if c.lower() in ["class","is_fraud","fraud","label","isFraud".lower()]:
+                        auto = c
+                        break
             idx = file_columns.index(auto) if auto in file_columns else 0
             sel = st.selectbox(f"{req}", file_columns, index=idx, key=f"map_{req}")
             if sel != "-- skip --": final_mapping[req] = sel
     with col2:
-        for req in required_cols[4:]:
+        for req in right_cols:
             auto = auto_mapping.get(req,"-- skip --")
             idx = file_columns.index(auto) if auto in file_columns else 0
             sel = st.selectbox(f"{req}", file_columns, index=idx, key=f"map_{req}")
             if sel != "-- skip --": final_mapping[req] = sel
-    missing = [c for c in ["transaction_id","user_id","amount","timestamp"] if c not in final_mapping]
+
+    # Only amount and timestamp are truly required now
+    missing = [c for c in ["amount","timestamp"] if c not in final_mapping]
     if missing:
-        st.warning(f"Please map these essential columns: {missing}")
+        st.warning(f"Please map these columns: {missing}")
         return None
+
     df_mapped = df.rename(columns={v: k for k, v in final_mapping.items()})
     return fill_optional_cols(df_mapped)
 
@@ -585,8 +616,8 @@ if not st.session_state.show_dashboard:
 # ─────────────────────────────────────────────────────────────────────────────
 raw_df = st.session_state.raw_df
 
-# Top bar
-tb1, tb2 = st.columns([6, 1])
+# Top bar with tabs
+tb1, tb2, tb3 = st.columns([5, 1, 1])
 with tb1:
     st.markdown("""
     <div style="padding:16px 0 8px;display:flex;align-items:center;gap:12px">
@@ -596,40 +627,100 @@ with tb1:
     </div>
     """, unsafe_allow_html=True)
 with tb2:
+    show_contact = st.button("📧 Contact", use_container_width=True)
+with tb3:
     if st.button("← Home", use_container_width=True):
         st.session_state.show_dashboard = False
         st.session_state.raw_df = None
         st.rerun()
 
-# Settings in a horizontal bar — properly aligned
-st.markdown("""
-<div style="background:#0d1f3c;border:1px solid #1e3a6b;border-radius:10px;
-padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
-    <span style="color:#64748b;font-size:0.78rem;text-transform:uppercase;
-    letter-spacing:0.1em;white-space:nowrap">Settings</span>
-</div>
-""", unsafe_allow_html=True)
+if show_contact:
+    st.markdown("""
+    <div style="background:linear-gradient(135deg,#0d1f3c,#080f1e);
+    border:1px solid #1e3a6b;border-radius:14px;padding:32px;
+    max-width:600px;margin:0 auto 24px">
+        <h3 style="color:#60a5fa;margin:0 0 8px">Get In Touch</h3>
+        <p style="color:#64748b;margin:0 0 24px;font-size:0.9rem">
+        Questions, feedback, or want a custom analysis for your business?</p>
 
-sc1, sc2, sc3 = st.columns([2,2,1])
+        <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="background:#080f1e;border:1px solid #1e3a6b;
+            border-radius:10px;padding:16px;display:flex;align-items:center;gap:14px">
+                <span style="font-size:1.5rem">📧</span>
+                <div>
+                    <div style="color:#94a3b8;font-size:0.75rem;
+                    text-transform:uppercase;letter-spacing:0.08em">Email</div>
+                    <div style="color:#60a5fa;font-size:1rem;font-weight:600">
+                    hello@shipscan.in</div>
+                </div>
+            </div>
+            <div style="background:#080f1e;border:1px solid #1e3a6b;
+            border-radius:10px;padding:16px;display:flex;align-items:center;gap:14px">
+                <span style="font-size:1.5rem">🌐</span>
+                <div>
+                    <div style="color:#94a3b8;font-size:0.75rem;
+                    text-transform:uppercase;letter-spacing:0.08em">Website</div>
+                    <div style="color:#60a5fa;font-size:1rem;font-weight:600">
+                    shipscan.in</div>
+                </div>
+            </div>
+            <div style="background:#080f1e;border:1px solid #1e3a6b;
+            border-radius:10px;padding:16px">
+                <div style="color:#94a3b8;font-size:0.75rem;
+                text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px">
+                Free Audit Offer</div>
+                <div style="color:#e2e8f0;font-size:0.88rem;line-height:1.6">
+                We offer a <strong style="color:#34d399">free first analysis</strong>
+                for new sellers. Upload your last month's orders and we'll send you
+                a complete fraud risk report — no charge, no obligation.</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.divider()
+
+# Settings bar
+sc1, sc2, sc3, sc4 = st.columns([2,2,2,1])
 with sc1:
     high_risk_threshold = st.slider("Alert if high-risk exceeds (%)", 1, 30, 10)
 with sc2:
     amount_threshold = st.number_input("High-amount flag (Rs.)", value=10000, step=1000)
 with sc3:
+    period_options = {
+        "All data": None,
+        "Last 1 month": 30,
+        "Last 3 months": 90,
+        "Last 6 months": 180,
+        "Last 1 year": 365,
+    }
+    period_label = st.selectbox("Time period", list(period_options.keys()), index=0)
+    period_days  = period_options[period_label]
+with sc4:
     st.markdown(f"""
     <div style="background:#080f1e;border:1px solid #1e3a6b;border-radius:8px;
     padding:10px 14px;margin-top:28px;text-align:center">
         <div style="color:#60a5fa;font-size:1rem;font-weight:700;
         font-family:'JetBrains Mono'">{len(raw_df):,}</div>
-        <div style="color:#475569;font-size:0.72rem">orders loaded</div>
+        <div style="color:#475569;font-size:0.72rem">rows loaded</div>
     </div>
     """, unsafe_allow_html=True)
 
-# Run analysis
+# Apply time period filter BEFORE running analysis
+filtered_raw = raw_df.copy()
+if period_days is not None:
+    try:
+        filtered_raw["timestamp"] = pd.to_datetime(filtered_raw["timestamp"], errors="coerce")
+        cutoff = filtered_raw["timestamp"].max() - pd.Timedelta(days=period_days)
+        filtered_raw = filtered_raw[filtered_raw["timestamp"] >= cutoff]
+        st.info(f"Showing {period_label.lower()}: {len(filtered_raw):,} of {len(raw_df):,} transactions")
+    except Exception:
+        pass  # If timestamp parsing fails, use all data
+
+# Run analysis on filtered data
 with st.spinner("Running fraud detection — rules + ML..."):
     t0 = time.time()
-    df_hash = hash(str(raw_df.shape) + str(raw_df.columns.tolist()))
-    scored, metrics = run_pipeline_cached(df_hash, raw_df)
+    df_hash = hash(str(filtered_raw.shape) + str(filtered_raw.columns.tolist()) + period_label)
+    scored, metrics = run_pipeline_cached(df_hash, filtered_raw)
     elapsed = time.time() - t0
 
 st.caption(f"Analysis complete in {elapsed:.1f}s — {metrics.get('mode','ML')} mode")
@@ -1005,22 +1096,115 @@ with ins3:
     """, unsafe_allow_html=True)
 
 # ── MODEL DETAILS ─────────────────────────────────────────────────────────────
-with st.expander("Model and Technical Details"):
-    st.write(f"**Detection mode:** {metrics.get('mode','unknown')}")
-    if "precision" in metrics:
-        m1,m2,m3 = st.columns(3)
-        m1.metric("Precision", f"{metrics['precision']:.1%}")
-        m2.metric("Recall", f"{metrics['recall']:.1%}")
-        m3.metric("F1 Score", f"{metrics['f1']:.1%}")
-    st.markdown("""
-    <div style="background:#0d1f3c;border:1px solid #1e3a6b;border-radius:8px;padding:14px;margin-top:12px">
-        <code style="color:#60a5fa;background:transparent;border:none;font-size:0.88rem">
-        fraud_score = (0.45 × rule_score) + (0.55 × ml_probability)
-        </code>
+# ── MODEL ACCURACY — always visible, not hidden in expander ──────────────────
+st.markdown('<div class="section-title">Model Accuracy & Technical Details</div>', unsafe_allow_html=True)
+
+mode = metrics.get("mode","unknown")
+has_labels = "precision" in metrics
+
+if has_labels:
+    # Supervised mode — show real accuracy metrics with explanation
+    precision = metrics["precision"]
+    recall    = metrics["recall"]
+    f1        = metrics["f1"]
+
+    st.markdown(f"""
+    <div style="background:linear-gradient(135deg,#0d2d1a,#0a1f12);
+    border:1px solid #1a5c32;border-radius:12px;padding:20px;margin-bottom:16px">
+        <div style="color:#34d399;font-size:0.78rem;text-transform:uppercase;
+        letter-spacing:0.1em;margin-bottom:12px">
+        Supervised ML — trained on your fraud labels (is_fraud column detected)
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px">
+            <div style="text-align:center">
+                <div style="font-size:2rem;font-weight:800;color:#34d399;
+                font-family:'JetBrains Mono'">{precision:.0%}</div>
+                <div style="color:#64748b;font-size:0.78rem;margin-top:4px">Precision</div>
+                <div style="color:#334155;font-size:0.72rem;margin-top:2px">
+                Of flagged orders, this % are genuinely risky</div>
+            </div>
+            <div style="text-align:center">
+                <div style="font-size:2rem;font-weight:800;color:#60a5fa;
+                font-family:'JetBrains Mono'">{recall:.0%}</div>
+                <div style="color:#64748b;font-size:0.78rem;margin-top:4px">Recall</div>
+                <div style="color:#334155;font-size:0.72rem;margin-top:2px">
+                Of all real fraud, this % was caught</div>
+            </div>
+            <div style="text-align:center">
+                <div style="font-size:2rem;font-weight:800;color:#a78bfa;
+                font-family:'JetBrains Mono'">{f1:.0%}</div>
+                <div style="color:#64748b;font-size:0.78rem;margin-top:4px">F1 Score</div>
+                <div style="color:#334155;font-size:0.72rem;margin-top:2px">
+                Balance of precision and recall</div>
+            </div>
+            <div style="text-align:center">
+                <div style="font-size:2rem;font-weight:800;color:#f59e0b;
+                font-family:'JetBrains Mono'">{(precision+recall)/2:.0%}</div>
+                <div style="color:#64748b;font-size:0.78rem;margin-top:4px">Overall</div>
+                <div style="color:#334155;font-size:0.72rem;margin-top:2px">
+                Avg accuracy on this dataset</div>
+            </div>
+        </div>
     </div>
-    <p style="color:#475569;font-size:0.82rem;margin-top:10px;line-height:1.7">
-    Rules engine covers: velocity attacks, shared IP/device, high amounts,
-    night transactions, location mismatch, first-transaction high-value.<br>
-    ML: RandomForest when fraud labels exist, IsolationForest for anomaly detection.
+    """, unsafe_allow_html=True)
+
+    # Plain language explanation of what these numbers mean
+    if precision >= 0.8:
+        prec_msg = "Excellent — very few false alarms. Sellers can trust flagged orders are genuinely risky."
+    elif precision >= 0.6:
+        prec_msg = "Good — some false alarms but most flags are real. Worth reviewing all flagged orders."
+    else:
+        prec_msg = "Moderate — retrain with more labeled data to improve. Still catching real fraud."
+
+    if recall >= 0.7:
+        rec_msg = "Strong — catching most fraud. Very few risky orders slipping through undetected."
+    elif recall >= 0.4:
+        rec_msg = "Moderate — catching a good portion of fraud. Some may slip through."
+    else:
+        rec_msg = "Low — missing some fraud. Add more training data with is_fraud labels to improve."
+
+    st.markdown(f"""
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="background:#080f1e;border:1px solid #1e3a6b;border-radius:8px;padding:14px">
+            <div style="color:#94a3b8;font-size:0.78rem;margin-bottom:4px">What precision means for you:</div>
+            <div style="color:#e2e8f0;font-size:0.85rem">{prec_msg}</div>
+        </div>
+        <div style="background:#080f1e;border:1px solid #1e3a6b;border-radius:8px;padding:14px">
+            <div style="color:#94a3b8;font-size:0.78rem;margin-bottom:4px">What recall means for you:</div>
+            <div style="color:#e2e8f0;font-size:0.85rem">{rec_msg}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+else:
+    # Unsupervised — explain anomaly detection mode
+    st.markdown("""
+    <div style="background:#1a1a0d;border:1px solid #4a4a1a;border-radius:12px;
+    padding:20px;margin-bottom:16px">
+        <div style="color:#fbbf24;font-size:0.78rem;text-transform:uppercase;
+        letter-spacing:0.1em;margin-bottom:8px">
+        Anomaly Detection Mode — no fraud labels found in your data
+        </div>
+        <p style="color:#94a3b8;font-size:0.85rem;margin:0;line-height:1.7">
+        The model is detecting statistically unusual transactions without knowing
+        which ones are definitively fraudulent. To get precision/recall accuracy scores,
+        add an <strong style="color:#fbbf24">is_fraud</strong> column to your CSV
+        with 1 for known fraud and 0 for legitimate orders.
+        Even without labels, the model catches genuine anomalies — velocity attacks,
+        shared IPs, unusual amounts — through the rules engine.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with st.expander("Technical Details — How Scoring Works"):
+    st.markdown(f"""
+    <p style="color:#475569;font-size:0.82rem;line-height:1.8">
+    <strong style="color:#94a3b8">Detection mode:</strong> {mode}<br>
+    <strong style="color:#94a3b8">Formula:</strong>
+    fraud_score = (0.45 × rule_score) + (0.55 × ml_probability)<br>
+    <strong style="color:#94a3b8">Rules engine:</strong> velocity attacks, shared IP/device,
+    high amounts, night transactions, location mismatch, new-user high-value orders<br>
+    <strong style="color:#94a3b8">ML model:</strong> RandomForest when is_fraud labels exist,
+    IsolationForest for anomaly detection without labels
     </p>
     """, unsafe_allow_html=True)
