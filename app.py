@@ -526,7 +526,7 @@ def colour_risk(val):
             "Low":"background-color:#001a0e;color:#6ee7b7;font-weight:bold"}.get(str(val),"")
 
 styled = (filtered[display_cols].head(200).style
-          .applymap(colour_risk, subset=["risk_label"])
+          .map(colour_risk, subset=["risk_label"])
           .format({"amount":"Rs.{:,.0f}","fraud_score_pct":"{:.1f}%"}))
 st.dataframe(styled, use_container_width=True, height=400)
 st.download_button("Download Results (Excel)", data=df_to_excel(filtered[display_cols]),
