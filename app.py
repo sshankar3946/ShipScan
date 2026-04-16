@@ -229,7 +229,7 @@ pre { background: #0d1f3c !important; color: #60a5fa !important; border-radius: 
     border: 1px solid #1e3a6b;
     border-radius: 12px;
     padding: 20px;
-    min-height: 120px;
+    min-height: 100px;
     transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
@@ -264,10 +264,8 @@ pre { background: #0d1f3c !important; color: #60a5fa !important; border-radius: 
     background: linear-gradient(135deg, #0d1f3c 0%, #0a1628 100%);
     border: 1px solid #1e3a6b;
     border-radius: 12px;
-    padding: 22px;
-    min-height: 280px;
+    padding: 18px;
     transition: all 0.2s ease;
-    height: 100%;
 }
 .insight-card:hover {
     border-color: #3b82f6;
@@ -475,52 +473,50 @@ if not st.session_state.show_dashboard:
     </div>
     """, unsafe_allow_html=True)
 
-    # Two options — centered
-    lc, mc, rc = st.columns([1, 2, 1])
-    with mc:
-        st.markdown("""
-        <div style="background:linear-gradient(135deg,#0d1f3c,#0a1628);
-        border:1px solid #1e3a6b;border-radius:16px;padding:32px;text-align:center">
-            <p style="color:#64748b;font-size:0.88rem;margin:0 0 24px;text-transform:uppercase;
-            letter-spacing:0.1em">Choose how to begin</p>
-        </div>
-        """, unsafe_allow_html=True)
+    # Two options — SIDE BY SIDE
+    st.markdown("""
+    <p style="text-align:center;color:#475569;font-size:0.82rem;
+    text-transform:uppercase;letter-spacing:0.12em;margin-bottom:16px">
+    Choose how to begin</p>
+    """, unsafe_allow_html=True)
 
-        # Option A — Sample data
+    opt_a, opt_b = st.columns(2)
+
+    with opt_a:
         st.markdown("""
         <div style="background:linear-gradient(135deg,#0d2d4a,#0a2040);
-        border:1px solid #1e5a8b;border-radius:12px;padding:20px;margin-bottom:12px">
-            <div style="font-size:1.5rem;margin-bottom:8px">🧪</div>
-            <div style="font-weight:600;color:#ffffff;font-size:1rem;margin-bottom:4px">
-            Try with Sample Data</div>
-            <div style="color:#64748b;font-size:0.83rem">
-            2,000 realistic transactions with fraud patterns pre-loaded</div>
+        border:1px solid #1e5a8b;border-radius:14px;padding:24px;
+        text-align:center;min-height:160px;display:flex;flex-direction:column;
+        justify-content:center">
+            <div style="font-size:2rem;margin-bottom:10px">🧪</div>
+            <div style="font-weight:700;color:#ffffff;font-size:1.05rem;margin-bottom:6px">
+            Try Sample Data</div>
+            <div style="color:#64748b;font-size:0.82rem;line-height:1.5">
+            2,000 realistic transactions<br>with fraud patterns pre-loaded</div>
         </div>
         """, unsafe_allow_html=True)
-
-        if st.button("▶ Launch Sample Analysis", use_container_width=True, type="primary"):
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+        if st.button("▶ Launch Sample Analysis", use_container_width=True, type="primary", key="btn_sample"):
             with st.spinner("Generating sample data..."):
                 raw = get_sample_data()
             st.session_state.raw_df = raw
             st.session_state.show_dashboard = True
             st.rerun()
 
-        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-
-        # Option B — Upload
+    with opt_b:
         st.markdown("""
         <div style="background:linear-gradient(135deg,#1a1f3c,#141830);
-        border:1px solid #2e3a6b;border-radius:12px;padding:20px;margin-bottom:12px">
-            <div style="font-size:1.5rem;margin-bottom:8px">📁</div>
-            <div style="font-weight:600;color:#ffffff;font-size:1rem;margin-bottom:4px">
-            Upload Your Transactions</div>
-            <div style="color:#64748b;font-size:0.83rem">
-            CSV or Excel — any column names, we map automatically</div>
+        border:1px solid #2e3a6b;border-radius:14px;padding:24px;
+        text-align:center;min-height:160px;display:flex;flex-direction:column;
+        justify-content:center">
+            <div style="font-size:2rem;margin-bottom:10px">📁</div>
+            <div style="font-weight:700;color:#ffffff;font-size:1.05rem;margin-bottom:6px">
+            Upload Your File</div>
+            <div style="color:#64748b;font-size:0.82rem;line-height:1.5">
+            CSV or Excel — any column names<br>we map them automatically</div>
         </div>
         """, unsafe_allow_html=True)
-
-        uploaded = st.file_uploader("", type=["csv","xlsx","xls"], label_visibility="collapsed")
-
+        uploaded = st.file_uploader("", type=["csv","xlsx","xls"], label_visibility="collapsed", key="file_upload")
         if uploaded is not None:
             try:
                 name = uploaded.name.lower()
@@ -530,30 +526,28 @@ if not st.session_state.show_dashboard:
                 if all(c in auto_mapping for c in essential):
                     raw = apply_column_mapping(raw_orig, auto_mapping)
                     raw = fill_optional_cols(raw)
-                    st.success(f"✅ {len(raw):,} rows loaded — columns mapped automatically")
+                    st.success(f"✅ {len(raw):,} rows loaded")
                     st.session_state.raw_df = raw
-                    if st.button("▶ Run Fraud Analysis", use_container_width=True):
+                    if st.button("▶ Run Fraud Analysis", use_container_width=True, key="btn_upload"):
                         st.session_state.show_dashboard = True
                         st.rerun()
                 else:
                     raw = show_column_mapper(raw_orig)
                     if raw is not None:
                         st.session_state.raw_df = raw
-                        if st.button("▶ Run Fraud Analysis", use_container_width=True):
+                        if st.button("▶ Run Fraud Analysis", use_container_width=True, key="btn_upload2"):
                             st.session_state.show_dashboard = True
                             st.rerun()
             except Exception as e:
                 st.error(f"Error reading file: {e}")
 
-        # Privacy note
-        st.markdown("""
-        <div style="text-align:center;margin-top:20px;padding-top:16px;
-        border-top:1px solid #0d1f3c">
-            <p style="color:#334155;font-size:0.75rem;margin:0">
-            🔒 Your data is never stored or shared. Analysed locally and deleted after your session.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+    <div style="text-align:center;margin-top:16px">
+        <p style="color:#1e3a6b;font-size:0.75rem;margin:0">
+        🔒 Your data is never stored or shared. Deleted after your session.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
     # How it works
     st.markdown("""
@@ -607,15 +601,29 @@ with tb2:
         st.session_state.raw_df = None
         st.rerun()
 
-# Settings in a horizontal bar
-sc1, sc2, sc3 = st.columns(3)
+# Settings in a horizontal bar — properly aligned
+st.markdown("""
+<div style="background:#0d1f3c;border:1px solid #1e3a6b;border-radius:10px;
+padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
+    <span style="color:#64748b;font-size:0.78rem;text-transform:uppercase;
+    letter-spacing:0.1em;white-space:nowrap">Settings</span>
+</div>
+""", unsafe_allow_html=True)
+
+sc1, sc2, sc3 = st.columns([2,2,1])
 with sc1:
     high_risk_threshold = st.slider("Alert if high-risk exceeds (%)", 1, 30, 10)
 with sc2:
     amount_threshold = st.number_input("High-amount flag (Rs.)", value=10000, step=1000)
 with sc3:
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.caption(f"Dataset: {len(raw_df):,} transactions loaded")
+    st.markdown(f"""
+    <div style="background:#080f1e;border:1px solid #1e3a6b;border-radius:8px;
+    padding:10px 14px;margin-top:28px;text-align:center">
+        <div style="color:#60a5fa;font-size:1rem;font-weight:700;
+        font-family:'JetBrains Mono'">{len(raw_df):,}</div>
+        <div style="color:#475569;font-size:0.72rem">orders loaded</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Run analysis
 with st.spinner("Running fraud detection — rules + ML..."):
@@ -776,12 +784,82 @@ styled = (filtered[display_cols].head(200).style
           .format({"amount":"Rs.{:,.0f}","fraud_score_pct":"{:.1f}%"}))
 st.dataframe(styled, use_container_width=True, height=420)
 
-st.download_button(
-    "⬇️ Download Results as Excel",
-    data=df_to_excel(filtered[display_cols]),
-    file_name="shipscan_results.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+dl1, dl2 = st.columns(2)
+with dl1:
+    st.download_button(
+        "⬇️ Download as Excel",
+        data=df_to_excel(filtered[display_cols]),
+        file_name="shipscan_results.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
+with dl2:
+    # PDF — plain text report in a downloadable format
+    def generate_text_report(df, scored_df, metrics):
+        lines = []
+        lines.append("=" * 60)
+        lines.append("SHIPSCAN FRAUD ANALYSIS REPORT")
+        lines.append("=" * 60)
+        lines.append("")
+        lines.append(f"Total transactions analysed: {len(scored_df):,}")
+        h = scored_df[scored_df["risk_label"]=="High"]
+        m = scored_df[scored_df["risk_label"]=="Medium"]
+        l = scored_df[scored_df["risk_label"]=="Low"]
+        lines.append(f"High risk:   {len(h):,} ({len(h)/len(scored_df)*100:.1f}%)")
+        lines.append(f"Medium risk: {len(m):,} ({len(m)/len(scored_df)*100:.1f}%)")
+        lines.append(f"Low risk:    {len(l):,} ({len(l)/len(scored_df)*100:.1f}%)")
+        lines.append(f"Amount at risk: Rs.{h['amount'].sum():,.0f}")
+        lines.append("")
+        lines.append("=" * 60)
+        lines.append("TOP HIGH-RISK TRANSACTIONS")
+        lines.append("=" * 60)
+        top = df[df["risk_label"]=="High"].head(20)
+        for _, row in top.iterrows():
+            lines.append("")
+            lines.append(f"Transaction: {row.get('transaction_id','—')}")
+            lines.append(f"User:        {row.get('user_id','—')}")
+            lines.append(f"Amount:      Rs.{row.get('amount',0):,.0f}")
+            lines.append(f"Fraud Score: {row.get('fraud_score_pct',0):.0f}%")
+            lines.append(f"Risk Level:  {row.get('risk_label','—')}")
+            reasons = row.get("rule_reasons", [])
+            if reasons:
+                lines.append("Why flagged:")
+                for r in reasons:
+                    lines.append(f"  • {r}")
+        lines.append("")
+        lines.append("=" * 60)
+        lines.append("WHAT YOU SHOULD DO")
+        lines.append("=" * 60)
+        lines.append("")
+        lines.append(f"1. Review all {len(h)} high-risk orders before shipping")
+        n_new = scored_df[(scored_df["is_first_txn"]==1)&(scored_df["amount"]>5000)]
+        if len(n_new):
+            lines.append(f"2. Verify {len(n_new)} new users with high-value first orders by phone")
+        shared = scored_df[scored_df["ip_user_count"]>=3]["ip_address"].unique()[:5]
+        if len(shared):
+            lines.append(f"3. Block or rate-limit these suspicious IPs:")
+            for ip in shared:
+                lines.append(f"   - {ip}")
+        lines.append("")
+        lines.append("PROCESS IMPROVEMENTS:")
+        lines.append("  • Add OTP verification for orders above Rs.10,000")
+        lines.append("  • Manual review queue for new COD buyers")
+        lines.append("  • Block high-RTO pin codes from COD orders")
+        lines.append("  • Retrain this model monthly as fraud patterns evolve")
+        lines.append("")
+        lines.append("=" * 60)
+        lines.append("Generated by ShipScan — shipscan.in")
+        lines.append("=" * 60)
+        return "\n".join(lines)
+
+    report_text = generate_text_report(filtered, scored, metrics)
+    st.download_button(
+        "⬇️ Download Report (TXT)",
+        data=report_text.encode("utf-8"),
+        file_name="shipscan_report.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
 
 # ── TRANSACTION EXPLAINER ─────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Transaction Explainer</div>', unsafe_allow_html=True)
