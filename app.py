@@ -1,4 +1,36 @@
 import streamlit as st
+
+# Simple password gate
+def check_password():
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if st.session_state.authenticated:
+        return True
+
+    st.markdown("""
+    <div style="max-width:400px;margin:100px auto;text-align:center">
+        <div style="font-size:3rem;margin-bottom:12px">🔍</div>
+        <h2 style="color:#ffffff;margin-bottom:4px">ShipScan</h2>
+        <p style="color:#64748b;margin-bottom:28px">Enter your access code to continue</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        pwd = st.text_input("Access code", type="password", label_visibility="collapsed",
+                            placeholder="Enter access code...")
+        if st.button("Access ShipScan", use_container_width=True, type="primary"):
+            if pwd == st.secrets.get("APP_PASSWORD", "shipscan2024"):
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("Incorrect access code")
+    return False
+
+if not check_password():
+    st.stop()
+
 import pandas as pd
 import numpy as np
 import plotly.express as px
