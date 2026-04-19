@@ -585,30 +585,63 @@ if not st.session_state.show_dashboard:
             CSV or Excel — any column names<br>we map them automatically</div>
         </div>
         """, unsafe_allow_html=True)
-        uploaded = st.file_uploader("", type=["csv","xlsx","xls"], label_visibility="collapsed", key="file_upload")
-        if uploaded is not None:
-            try:
-                name = uploaded.name.lower()
-                raw_orig = pd.read_csv(uploaded) if name.endswith(".csv") else pd.read_excel(uploaded)
-                auto_mapping = auto_map_columns(list(raw_orig.columns))
-                essential = ["transaction_id","user_id","amount","timestamp"]
-                if all(c in auto_mapping for c in essential):
-                    raw = apply_column_mapping(raw_orig, auto_mapping)
-                    raw = fill_optional_cols(raw)
-                    st.success(f"✅ {len(raw):,} rows loaded")
-                    st.session_state.raw_df = raw
-                    if st.button("▶ Run Fraud Analysis", use_container_width=True, key="btn_upload"):
-                        st.session_state.show_dashboard = True
-                        st.rerun()
+        # ── ACCESS CODE GATE ─────────────────────────────────────────────────
+        if not st.session_state.get("upload_unlocked", False):
+            st.markdown("""
+            <div style="background:#0d1f3c;border:1px solid #1e3a6b;
+            border-radius:10px;padding:14px;margin-top:8px;text-align:center">
+                <p style="color:#94a3b8;font-size:0.8rem;margin:0 0 8px">
+                🔒 Access code required to upload your data</p>
+            </div>
+            """, unsafe_allow_html=True)
+            access_code = st.text_input(
+                "code", type="password",
+                placeholder="Enter access code...",
+                label_visibility="collapsed",
+                key="upload_code"
+            )
+            if st.button("Unlock →", use_container_width=True, key="btn_unlock"):
+                valid = st.secrets.get("APP_PASSWORD", "shipscan2024")
+                if access_code == valid:
+                    st.session_state.upload_unlocked = True
+                    st.rerun()
                 else:
-                    raw = show_column_mapper(raw_orig)
-                    if raw is not None:
+                    st.error("Wrong code. Email contact@shipscan.in to get access.")
+            st.caption("First analysis is free — email us for your access code")
+        else:
+            st.success("✅ Upload access granted")
+            uploaded = st.file_uploader("", type=["csv","xlsx","xls"],
+                                        label_visibility="collapsed",
+                                        key="file_upload")
+            if uploaded is not None:
+                try:
+                    name = uploaded.name.lower()
+                    raw_orig = (pd.read_csv(uploaded)
+                                if name.endswith(".csv")
+                                else pd.read_excel(uploaded))
+                    auto_mapping = auto_map_columns(list(raw_orig.columns))
+                    essential = ["transaction_id","user_id","amount","timestamp"]
+                    if all(c in auto_mapping for c in essential):
+                        raw = apply_column_mapping(raw_orig, auto_mapping)
+                        raw = fill_optional_cols(raw)
+                        st.success(f"✅ {len(raw):,} rows loaded")
                         st.session_state.raw_df = raw
-                        if st.button("▶ Run Fraud Analysis", use_container_width=True, key="btn_upload2"):
+                        if st.button("▶ Run Fraud Analysis",
+                                     use_container_width=True,
+                                     key="btn_upload"):
                             st.session_state.show_dashboard = True
                             st.rerun()
-            except Exception as e:
-                st.error(f"Error reading file: {e}")
+                    else:
+                        raw = show_column_mapper(raw_orig)
+                        if raw is not None:
+                            st.session_state.raw_df = raw
+                            if st.button("▶ Run Fraud Analysis",
+                                         use_container_width=True,
+                                         key="btn_upload2"):
+                                st.session_state.show_dashboard = True
+                                st.rerun()
+                except Exception as e:
+                    st.error(f"Error reading file: {e}")
 
     st.markdown("""
     <div style="text-align:center;margin-top:16px">
