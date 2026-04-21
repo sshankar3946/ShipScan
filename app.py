@@ -23,6 +23,16 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
+/* ── HIDE STREAMLIT BRANDING ── */
+#MainMenu { visibility: hidden !important; }
+footer { visibility: hidden !important; }
+header { visibility: hidden !important; }
+[data-testid="stToolbar"] { display: none !important; }
+[data-testid="stDecoration"] { display: none !important; }
+[data-testid="stStatusWidget"] { display: none !important; }
+.viewerBadge_container__1QSob { display: none !important; }
+.styles_viewerBadge__1yB5_ { display: none !important; }
+
 /* ── BASE ── */
 html, body, [class*="css"] {
     font-family: 'Space Grotesk', sans-serif;
