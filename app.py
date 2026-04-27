@@ -33,6 +33,50 @@ header { visibility: hidden !important; }
 .viewerBadge_container__1QSob { display: none !important; }
 .styles_viewerBadge__1yB5_ { display: none !important; }
 
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 768px) {
+    .hero-grid { grid-template-columns: 1fr !important; }
+    .stat-card { min-height: auto !important; padding: 14px !important; }
+    .insight-card { padding: 14px !important; min-height: auto !important; }
+    [data-testid="stMetricValue"] { font-size: 1.3rem !important; }
+    .card-value { font-size: 1.4rem !important; }
+    .hero-amount { font-size: 2rem !important; }
+    button { width: 100% !important; }
+}
+* {
+    word-wrap: break-word !important;
+    overflow-wrap: anywhere !important;
+    max-width: 100% !important;
+}
+.hero-amount {
+    font-size: 2.8rem;
+    font-weight: 900;
+    font-family: monospace;
+    line-height: 1;
+}
+.loss-line {
+    background: linear-gradient(135deg,#1a0808,#2d0f0f);
+    border-left: 4px solid #ef4444;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+}
+.action-line {
+    background: #080f1e;
+    border-left: 3px solid #ef4444;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+}
+.cta-banner {
+    background: linear-gradient(135deg,#0d2d1a,#0a1f12);
+    border: 1px solid #10b981;
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    margin-top: 32px;
+}
+
 /* ── BASE ── */
 html, body, [class*="css"] {
     font-family: 'Space Grotesk', sans-serif;
@@ -799,107 +843,6 @@ if period_days is not None:
     except Exception:
         pass  # If timestamp parsing fails, use all data
 
-# ── OPTIONAL: Column Calculator (multiply units × price → amount) ─────────────
-with st.expander("⚙️ Data Tools — Column Calculator & Data Cleaning", expanded=False):
-    tool_tab1, tool_tab2 = st.tabs(["💰 Calculate Amount Column", "🧹 Data Cleaning"])
-
-    with tool_tab1:
-        st.markdown("""
-        <p style="color:#94a3b8;font-size:0.85rem;margin:0 0 12px">
-        If your file has separate <strong>Units</strong> and <strong>Price</strong>
-        columns instead of a total amount — use this to calculate it automatically.
-        </p>""", unsafe_allow_html=True)
-        num_cols = filtered_raw.select_dtypes(include='number').columns.tolist()
-        all_cols = filtered_raw.columns.tolist()
-        if num_cols:
-            cc1, cc2, cc3 = st.columns(3)
-            with cc1:
-                units_col = st.selectbox("Units / Quantity column",
-                    ["-- select --"] + all_cols, key="units_col")
-            with cc2:
-                price_col = st.selectbox("Price / Rate column",
-                    ["-- select --"] + all_cols, key="price_col")
-            with cc3:
-                st.markdown("<br>", unsafe_allow_html=True)
-                if st.button("Calculate Amount", use_container_width=True,
-                             key="calc_btn"):
-                    if units_col != "-- select --" and price_col != "-- select --":
-                        try:
-                            filtered_raw["amount"] = (
-                                pd.to_numeric(filtered_raw[units_col], errors="coerce") *
-                                pd.to_numeric(filtered_raw[price_col], errors="coerce")
-                            )
-                            st.success(f"✅ Amount calculated: {units_col} × {price_col}")
-                            st.dataframe(
-                                filtered_raw[["amount"]].describe().T,
-                                use_container_width=True
-                            )
-                        except Exception as e:
-                            st.error(f"Error: {e}")
-                    else:
-                        st.warning("Please select both columns")
-        else:
-            st.info("No numeric columns found in your data.")
-
-    with tool_tab2:
-        st.markdown("""
-        <p style="color:#94a3b8;font-size:0.85rem;margin:0 0 12px">
-        Clean your data before analysis. Select which operations to apply.
-        </p>""", unsafe_allow_html=True)
-
-        cl1, cl2 = st.columns(2)
-        with cl1:
-            remove_dupes = st.checkbox("Remove duplicate rows", value=True)
-            strip_spaces = st.checkbox("Strip whitespace from text columns", value=True)
-            fix_amounts  = st.checkbox("Remove rows with zero or negative amounts", value=True)
-        with cl2:
-            fill_missing = st.checkbox("Fill missing text with 'Unknown'", value=True)
-            drop_missing_ts = st.checkbox("Drop rows with missing timestamps", value=True)
-            standardise_pay = st.checkbox("Standardise payment method names", value=True)
-
-        if st.button("🧹 Apply Cleaning", use_container_width=True, key="clean_btn"):
-            original_len = len(filtered_raw)
-            df_clean = filtered_raw.copy()
-
-            if remove_dupes:
-                df_clean = df_clean.drop_duplicates()
-            if strip_spaces:
-                str_cols = df_clean.select_dtypes(include='object').columns
-                for col in str_cols:
-                    df_clean[col] = df_clean[col].astype(str).str.strip()
-            if fix_amounts and 'amount' in df_clean.columns:
-                df_clean['amount'] = pd.to_numeric(df_clean['amount'], errors='coerce')
-                df_clean = df_clean[df_clean['amount'] > 0]
-            if fill_missing:
-                str_cols = df_clean.select_dtypes(include='object').columns
-                for col in str_cols:
-                    df_clean[col] = df_clean[col].fillna('Unknown')
-            if drop_missing_ts and 'timestamp' in df_clean.columns:
-                df_clean['timestamp'] = pd.to_datetime(df_clean['timestamp'],
-                                                        errors='coerce')
-                df_clean = df_clean.dropna(subset=['timestamp'])
-            if standardise_pay and 'payment_method' in df_clean.columns:
-                pay_map = {
-                    'cash on delivery': 'COD', 'cash': 'COD',
-                    'cod': 'COD', 'c.o.d': 'COD',
-                    'credit card': 'Card', 'debit card': 'Card',
-                    'card': 'Card', 'upi': 'UPI', 'gpay': 'UPI',
-                    'phonepe': 'UPI', 'paytm': 'UPI', 'wallet': 'Wallet',
-                    'prepaid': 'Prepaid', 'online': 'Prepaid'
-                }
-                df_clean['payment_method'] = (
-                    df_clean['payment_method']
-                    .str.lower().str.strip()
-                    .map(lambda x: pay_map.get(x, x.title()))
-                )
-
-            removed = original_len - len(df_clean)
-            filtered_raw = df_clean
-            st.success(f"""✅ Cleaning complete.
-            Removed {removed:,} problematic rows.
-            {len(filtered_raw):,} clean rows ready for analysis.""")
-
-st.markdown("---")
 
 # Run analysis on filtered data
 with st.spinner("Running fraud detection — rules + ML..."):
@@ -916,174 +859,151 @@ low_risk_df    = scored[scored["risk_label"]=="Low"]
 high_risk_pct  = len(high_risk_df)/len(scored)*100
 amount_at_risk = high_risk_df["amount"].sum()
 
-# ── LOSS SUMMARY HERO — First thing visible ───────────────────────────────────
-# Conservative estimate: 40% of high-risk orders result in actual loss
-est_actual_loss    = amount_at_risk * 0.40
-monthly_projection = est_actual_loss * (30 / max(
-    (scored["timestamp"].max() - scored["timestamp"].min()).days, 1))
-monthly_low  = monthly_projection * 0.7
-monthly_high = monthly_projection * 1.3
-
-# Key patterns for business impact
-n_fraud_ring    = scored[scored.get("address_user_count",
-                  pd.Series([1]*len(scored))) >= 3].shape[0] if "address_user_count" in scored.columns else 0
-n_fake_addr     = scored[scored.get("is_landmark_only",
-                  pd.Series([False]*len(scored))) == True].shape[0] if "is_landmark_only" in scored.columns else 0
-n_velocity_att  = scored[scored.get("txn_count_1h",
-                  pd.Series([0]*len(scored))) > 5].shape[0] if "txn_count_1h" in scored.columns else 0
-n_new_high_val  = scored[(scored.get("is_first_txn",
-                  pd.Series([0]*len(scored))) == 1) &
-                  (scored["amount"] > amount_threshold)].shape[0] if "is_first_txn" in scored.columns else 0
-top_risk_users  = scored[scored["risk_label"]=="High"]["user_id"].value_counts().head(3)
-
-# Pre-compute everything before building HTML — avoids f-string conflicts
+# ── TOP ALERT BANNER ─────────────────────────────────────────────────────────
+# Pre-compute all values
+est_actual_loss  = amount_at_risk * 0.40
+monthly_days     = max((scored["timestamp"].max() - scored["timestamp"].min()).days, 1)
+monthly_proj     = est_actual_loss * (30 / monthly_days)
+monthly_low      = monthly_proj * 0.7
+monthly_high     = monthly_proj * 1.3
+savings_low      = est_actual_loss * 0.5
+savings_high     = est_actual_loss * 0.8
 alert_color      = "#dc2626" if high_risk_pct >= high_risk_threshold else "#d97706"
-amount_at_risk_f = f"Rs.{amount_at_risk:,.0f}"
-est_loss_f       = f"Rs.{est_actual_loss:,.0f}"
-monthly_range_f  = f"Rs.{monthly_low:,.0f} to Rs.{monthly_high:,.0f}"
-risk_pct_f       = f"{high_risk_pct:.1f}%"
-risk_comment     = ("That is above average — immediate action recommended."
-                    if high_risk_pct > 8
-                    else "This is within typical range — still worth reviewing flagged orders.")
+orders_per_risk  = max(int(len(scored) / max(len(high_risk_df), 1)), 1)
 
-hero_html = (
-    '<div style="background:linear-gradient(135deg,#1a0808 0%,#2d0f0f 100%);'
-    'border:2px solid ' + alert_color + ';border-radius:16px;padding:28px 32px;margin-bottom:24px">'
+# Pattern counts
+n_fraud_ring   = int(scored[scored.get("address_user_count", pd.Series([1]*len(scored))) >= 3].shape[0]) if "address_user_count" in scored.columns else 0
+n_fake_addr    = int(scored[scored.get("is_landmark_only", pd.Series([False]*len(scored))) == True].shape[0]) if "is_landmark_only" in scored.columns else 0
+n_velocity_att = int(scored[scored.get("txn_count_1h", pd.Series([0]*len(scored))) > 5].shape[0]) if "txn_count_1h" in scored.columns else 0
+n_new_high_val = int(scored[(scored.get("is_first_txn", pd.Series([0]*len(scored))) == 1) & (scored["amount"] > amount_threshold)].shape[0]) if "is_first_txn" in scored.columns else 0
 
-    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'
-    '<span style="font-size:1.5rem">🚨</span>'
-    '<span style="font-size:0.75rem;font-weight:700;color:' + alert_color + ';'
-    'text-transform:uppercase;letter-spacing:0.15em">Revenue Risk &amp; Order Analysis Report</span>'
+cod_high = scored[(scored["risk_label"]=="High") & (scored["payment_method"].str.lower().str.contains("cod", na=False))] if "payment_method" in scored.columns else pd.DataFrame()
+
+# Build loss breakdown
+loss_from_newhi  = scored[(scored.get("is_first_txn", pd.Series([0]*len(scored)))==1) & (scored["risk_label"]=="High")]["amount"].sum() if "is_first_txn" in scored.columns else 0
+loss_from_ring   = scored[(scored.get("address_user_count", pd.Series([1]*len(scored))) >= 3) & (scored["risk_label"]=="High")]["amount"].sum() if "address_user_count" in scored.columns else 0
+loss_from_addr   = scored[(scored.get("is_landmark_only", pd.Series([False]*len(scored)))==True) & (scored["risk_label"]=="High")]["amount"].sum() if "is_landmark_only" in scored.columns else 0
+loss_from_vel    = scored[(scored.get("txn_count_1h", pd.Series([0]*len(scored)))>5) & (scored["risk_label"]=="High")]["amount"].sum() if "txn_count_1h" in scored.columns else 0
+loss_remaining   = max(amount_at_risk - loss_from_newhi - loss_from_ring - loss_from_addr - loss_from_vel, 0)
+
+# String versions
+amt_risk_s     = f"Rs.{amount_at_risk:,.0f}"
+est_loss_s     = f"Rs.{est_actual_loss:,.0f}"
+monthly_s      = f"Rs.{monthly_low:,.0f} to Rs.{monthly_high:,.0f}"
+savings_s      = f"Rs.{savings_low:,.0f} to Rs.{savings_high:,.0f}"
+pct_s          = f"{high_risk_pct:.1f}%"
+risk_comment   = "Above average — immediate action recommended." if high_risk_pct > 8 else "Within typical range — still worth reviewing."
+
+# ── ALERT BANNER ──────────────────────────────────────────────────────────────
+banner_html = (
+    '<div style="background:linear-gradient(135deg,#1a0808,#2d0f0f);'
+    'border:2px solid ' + alert_color + ';border-radius:14px;padding:20px 24px;'
+    'margin-bottom:20px">'
+
+    '<div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">'
+    '<div style="flex:1;min-width:200px">'
+    '<div style="color:#ef4444;font-size:0.72rem;font-weight:700;'
+    'text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">'
+    '🚨 Revenue at Risk — Based on Historical Order Patterns</div>'
+    '<div class="hero-amount" style="color:#ef4444">' + amt_risk_s + '</div>'
+    '<div style="color:#64748b;font-size:0.78rem;margin-top:4px">'
+    'From ' + str(len(high_risk_df)) + ' flagged orders in your data</div>'
     '</div>'
 
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:20px">'
-
-    '<div>'
-    '<div style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;'
-    'letter-spacing:0.1em;margin-bottom:6px">Estimated Revenue at Risk</div>'
-    '<div style="font-size:2.8rem;font-weight:900;color:#ef4444;'
-    'font-family:monospace;line-height:1">' + amount_at_risk_f + '</div>'
-    '<div style="color:#64748b;font-size:0.75rem;margin-top:6px">'
-    'Based on detected high-risk order patterns in your data</div>'
+    '<div style="flex:1;min-width:200px">'
+    '<div style="color:#f59e0b;font-size:0.72rem;font-weight:700;'
+    'text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">'
+    '⚠️ If Patterns Continue — Monthly Impact</div>'
+    '<div class="hero-amount" style="color:#f59e0b">' + monthly_s + '</div>'
+    '<div style="color:#64748b;font-size:0.78rem;margin-top:4px">'
+    'Projected loss per month if not addressed</div>'
     '</div>'
 
-    '<div>'
-    '<div style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;'
-    'letter-spacing:0.1em;margin-bottom:6px">Estimated Actual Loss</div>'
-    '<div style="font-size:2.8rem;font-weight:900;color:#f59e0b;'
-    'font-family:monospace;line-height:1">' + est_loss_f + '</div>'
-    '<div style="color:#64748b;font-size:0.75rem;margin-top:6px">'
-    'Conservative estimate — 40% of flagged orders result in real loss</div>'
-    '</div>'
-
-    '<div>'
-    '<div style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;'
-    'letter-spacing:0.1em;margin-bottom:6px">Potential Monthly Impact</div>'
-    '<div style="font-size:2.8rem;font-weight:900;color:#a78bfa;'
-    'font-family:monospace;line-height:1">' + monthly_range_f + '</div>'
-    '<div style="color:#64748b;font-size:0.75rem;margin-top:6px">'
-    'If current patterns continue unchecked</div>'
+    '<div style="flex:1;min-width:200px">'
+    '<div style="color:#10b981;font-size:0.72rem;font-weight:700;'
+    'text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">'
+    '✅ Potential Savings — If Actions Taken</div>'
+    '<div class="hero-amount" style="color:#10b981">' + savings_s + '</div>'
+    '<div style="color:#64748b;font-size:0.78rem;margin-top:4px">'
+    'Based on 50–80% action effectiveness</div>'
     '</div>'
     '</div>'
 
-    '<div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(220,38,38,0.2)">'
+    '<div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(220,38,38,0.15);'
+    'display:flex;align-items:center;gap:16px;flex-wrap:wrap">'
+    '<span style="background:#1a0808;border:1px solid #ef4444;border-radius:20px;'
+    'padding:4px 14px;color:#fca5a5;font-size:0.8rem;font-weight:600">'
+    '1 in every ~' + str(orders_per_risk) + ' orders shows loss patterns</span>'
     '<span style="color:#64748b;font-size:0.78rem">'
-    '📊 Most eCommerce datasets show 8–15% of orders with hidden risk patterns. '
-    'Your dataset shows <strong style="color:#ef4444">' + risk_pct_f + '</strong> '
-    'high-risk orders. ' + risk_comment +
-    '</span>'
+    '📊 Most eCommerce datasets show 8–15% hidden risk. Yours shows '
+    '<strong style="color:#ef4444">' + pct_s + '</strong>. ' + risk_comment + '</span>'
     '</div>'
     '</div>'
 )
+st.markdown(banner_html, unsafe_allow_html=True)
 
-st.markdown(hero_html, unsafe_allow_html=True)
-
-# ── BUSINESS IMPACT SECTION ───────────────────────────────────────────────────
-st.markdown('<div class="section-title">📋 Business Impact — What This Means For You</div>',
+# ── MONEY BREAKDOWN — Where losses come from ──────────────────────────────────
+st.markdown('<div class="section-title">💸 Where Your Losses Are Coming From</div>',
             unsafe_allow_html=True)
 
-bi1, bi2, bi3 = st.columns(3)
+breakdown_items = []
+if loss_from_newhi > 0:
+    breakdown_items.append((
+        f"Rs.{loss_from_newhi:,.0f}",
+        "High-value first orders (COD)",
+        f"{n_new_high_val} first-time buyers placed large COD orders — no order history to verify intent",
+        "#ef4444"
+    ))
+if loss_from_ring > 0:
+    breakdown_items.append((
+        f"Rs.{loss_from_ring:,.0f}",
+        "Repeat IP or device abuse",
+        f"{n_fraud_ring} orders share IP or device across multiple accounts — coordinated fraud behaviour",
+        "#f59e0b"
+    ))
+if loss_from_addr > 0:
+    breakdown_items.append((
+        f"Rs.{loss_from_addr:,.0f}",
+        "Suspicious or undeliverable addresses",
+        f"{n_fake_addr} orders use landmark-only addresses (near water tank, opp gas agency) with COD",
+        "#f59e0b"
+    ))
+if loss_from_vel > 0:
+    breakdown_items.append((
+        f"Rs.{loss_from_vel:,.0f}",
+        "Velocity attack patterns",
+        f"{n_velocity_att} orders placed in rapid bursts from same source — possible automated fraud",
+        "#8b5cf6"
+    ))
+if loss_remaining > 0:
+    breakdown_items.append((
+        f"Rs.{loss_remaining:,.0f}",
+        "Other ML-detected anomalies",
+        "Statistical outliers not covered by specific rules — unusual combinations of risk signals",
+        "#64748b"
+    ))
 
-cod_high = scored[(scored["risk_label"]=="High") &
-                  (scored["payment_method"].str.lower().str.contains("cod", na=False))
-                 ] if "payment_method" in scored.columns else pd.DataFrame()
+if breakdown_items:
+    for amount, title, explanation, color in breakdown_items:
+        st.markdown(
+            '<div class="loss-line">'
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">'
+            '<div style="flex:1;min-width:150px">'
+            '<div style="font-size:1.4rem;font-weight:800;color:' + color + ';font-family:monospace">'
+            + amount + '</div>'
+            '<div style="font-weight:600;color:#e2e8f0;font-size:0.88rem;margin-top:2px">'
+            + title + '</div>'
+            '</div>'
+            '<div style="flex:2;min-width:200px">'
+            '<div style="color:#94a3b8;font-size:0.82rem;line-height:1.5">'
+            + explanation + '</div>'
+            '</div>'
+            '</div>'
+            '</div>',
+            unsafe_allow_html=True
+        )
 
-# Pre-compute all dynamic strings to avoid f-string HTML conflicts
-n_high_str    = f"{len(high_risk_df):,}"
-n_cod_str     = str(len(cod_high))
-n_fake_str    = str(n_fake_addr)
-n_ring_str    = str(n_fraud_ring)
-n_newhi_str   = str(n_new_high_val)
-n_vel_str     = str(n_velocity_att)
-pct_high_str  = f"{high_risk_pct:.1f}%"
-pct_med_str   = f"{len(medium_risk_df)/len(scored)*100:.1f}%"
-savings_low   = est_actual_loss * 0.5
-savings_high  = est_actual_loss * 0.8
-savings_str   = f"Rs.{savings_low:,.0f} to Rs.{savings_high:,.0f}"
-
-# Build loss detail lines
-loss_lines = f"<strong style='color:#e8eaf0'>{n_high_str} orders</strong> are flagged as likely causing loss.<br><br>"
-if len(cod_high) > 0:
-    loss_lines += f"<strong style='color:#e8eaf0'>{n_cod_str} are COD orders</strong> — highest risk as payment not yet collected.<br><br>"
-if n_fake_addr > 0:
-    loss_lines += f"<strong style='color:#e8eaf0'>{n_fake_str} have fake or incomplete addresses</strong> — likely undeliverable.<br><br>"
-if n_fraud_ring > 0:
-    loss_lines += f"<strong style='color:#e8eaf0'>{n_ring_str} show fraud ring patterns</strong> — multiple accounts from same location."
-
-# Build pattern highlights
-pattern_lines = ""
-if n_new_high_val > 0:
-    pattern_lines += f"<div style='padding:4px 0;border-bottom:1px solid #0d1f3c'>✦ <strong style='color:#e8eaf0'>{n_newhi_str} new users</strong> placed high-value first orders</div>"
-if n_fraud_ring > 0:
-    pattern_lines += f"<div style='padding:4px 0;border-bottom:1px solid #0d1f3c'>✦ <strong style='color:#e8eaf0'>{n_ring_str} addresses reused</strong> across multiple accounts</div>"
-if n_velocity_att > 0:
-    pattern_lines += f"<div style='padding:4px 0;border-bottom:1px solid #0d1f3c'>✦ <strong style='color:#e8eaf0'>{n_vel_str} velocity pattern orders</strong> — many in short bursts</div>"
-if n_fake_addr > 0:
-    pattern_lines += f"<div style='padding:4px 0;border-bottom:1px solid #0d1f3c'>✦ <strong style='color:#e8eaf0'>{n_fake_str} landmark-only addresses</strong> detected</div>"
-pattern_lines += f"<div style='padding:4px 0;border-bottom:1px solid #0d1f3c'>✦ <strong style='color:#e8eaf0'>{pct_high_str}</strong> of orders flagged high risk</div>"
-pattern_lines += f"<div style='padding:4px 0'>✦ <strong style='color:#e8eaf0'>{pct_med_str}</strong> of orders require monitoring</div>"
-
-with bi1:
-    bi1_html = (
-        '<div class="insight-card">'
-        '<div style="font-size:1.4rem;margin-bottom:8px">💸</div>'
-        '<h4 style="color:#ef4444;margin:0 0 10px">Where Losses Come From</h4>'
-        '<p style="color:#94a3b8;font-size:0.85rem;line-height:1.7;margin:0">'
-        + loss_lines +
-        '</p></div>'
-    )
-    st.markdown(bi1_html, unsafe_allow_html=True)
-
-with bi2:
-    bi2_html = (
-        '<div class="insight-card">'
-        '<div style="font-size:1.4rem;margin-bottom:8px">🔍</div>'
-        '<h4 style="color:#f59e0b;margin:0 0 10px">Key Pattern Highlights</h4>'
-        '<div style="font-size:0.85rem;color:#94a3b8;line-height:1.8">'
-        + pattern_lines +
-        '</div></div>'
-    )
-    st.markdown(bi2_html, unsafe_allow_html=True)
-
-with bi3:
-    bi3_html = (
-        '<div class="insight-card">'
-        '<div style="font-size:1.4rem;margin-bottom:8px">📈</div>'
-        '<h4 style="color:#10b981;margin:0 0 10px">Expected Improvement</h4>'
-        '<p style="color:#94a3b8;font-size:0.85rem;line-height:1.7;margin:0 0 12px">'
-        'If the recommended actions below are implemented:</p>'
-        '<div style="background:#0a1628;border-radius:8px;padding:14px;border-left:3px solid #10b981">'
-        '<div style="color:#64748b;font-size:0.72rem;text-transform:uppercase;'
-        'letter-spacing:0.08em;margin-bottom:4px">Potential Loss Reduction</div>'
-        '<div style="font-size:1.6rem;font-weight:800;color:#10b981;font-family:monospace">'
-        + savings_str +
-        '</div>'
-        '<div style="color:#475569;font-size:0.75rem;margin-top:4px">'
-        'Based on 50-80% action effectiveness</div>'
-        '</div></div>'
-    )
-    st.markdown(bi3_html, unsafe_allow_html=True)
-
+# ── SUMMARY METRICS ───────────────────────────────────────────────────────────
 # ── SUMMARY METRICS ───────────────────────────────────────────────────────────
 st.markdown('<div class="section-title">📊 Order Risk Summary</div>', unsafe_allow_html=True)
 
@@ -1272,7 +1192,8 @@ with dl2:
 <html>
 <head>
 <meta charset="UTF-8">
-<title>ShipScan Fraud Report</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShipScan — Revenue Risk Report</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
   * {{ margin:0; padding:0; box-sizing:border-box; }}
@@ -1320,15 +1241,31 @@ with dl2:
   <div class="card green"><div class="label">💰 Amount at Risk</div><div class="value" style="font-size:1.1rem">Rs.{amount_risk:,.0f}</div><div style="font-size:0.75rem;color:#64748b;margin-top:4px">from high-risk orders</div></div>
 </div>
 
+<div style="background:#fff8e1;border-left:4px solid #f59e0b;border-radius:8px;
+padding:16px;margin-bottom:24px">
+  <h3 style="margin:0 0 8px;color:#92400e;font-size:1rem">💸 Where Your Losses Are Coming From</h3>
+  <p style="margin:0;color:#78350f;font-size:0.88rem;line-height:1.6">
+  Based on {len(h):,} flagged orders worth Rs.{amount_risk:,.0f}.
+  Conservative estimate of actual loss: <strong>Rs.{amount_risk*0.4:,.0f}</strong>
+  (40% realisation rate on flagged orders).
+  If patterns continue: <strong>Rs.{amount_risk*0.4*0.7*30/max((scored["timestamp"].max()-scored["timestamp"].min()).days,1):,.0f}
+  to Rs.{amount_risk*0.4*1.3*30/max((scored["timestamp"].max()-scored["timestamp"].min()).days,1):,.0f} per month</strong>.
+  </p>
+  <p style="margin:8px 0 0;color:#92400e;font-size:0.82rem">
+  ✅ If recommended actions implemented: estimated savings of
+  <strong>Rs.{amount_risk*0.4*0.5:,.0f} to Rs.{amount_risk*0.4*0.8:,.0f}</strong>
+  </p>
+</div>
+
 <h2>Top High-Risk Transactions</h2>
 <table>
   <thead><tr><th>Transaction ID</th><th>User</th><th>Amount</th><th>Fraud Score</th><th>Risk</th><th>Why Flagged</th></tr></thead>
   <tbody>{rows_html}</tbody>
 </table>
 
-<h2>What Should You Do?</h2>
+<h2>What You Must Do Immediately</h2>
 <div class="actions">
-  <div class="action-item"><div class="action-num">1</div><div>Review all <strong>{len(h)} high-risk orders</strong> before shipping or settling payment.</div></div>
+  <div class="action-item"><div class="action-num">1</div><div><strong>Review {len(h)} orders BEFORE shipping</strong> — these may account for Rs.{amount_risk*0.4:,.0f} in potential loss. Do not dispatch without verification.</div></div>
   {"<div class='action-item'><div class='action-num'>2</div><div>Verify <strong>" + str(len(n_new)) + " new users</strong> who placed high-value first orders — call before dispatching.</div></div>" if len(n_new) else ""}
   {"<div class='action-item'><div class='action-num'>3</div><div>Block or rate-limit these suspicious IPs: <ul style='margin-top:6px;padding-left:16px'>" + ip_list + "</ul></div></div>" if len(shared_ips) else ""}
 </div>
@@ -1343,9 +1280,21 @@ with dl2:
   <div class="imp-item">🏠 Reject landmark-only delivery addresses for COD</div>
 </div>
 
-<div class="footer">
+<div style="background:#f0fdf4;border:1px solid #10b981;border-radius:10px;
+padding:20px;text-align:center;margin-top:24px">
+  <h3 style="color:#065f46;margin:0 0 8px;font-size:1rem">
+  Want This Monitored Continuously?</h3>
+  <p style="color:#047857;font-size:0.85rem;margin:0 0 12px">
+  ShipScan can run weekly or monthly analysis and alert you when new patterns appear.
+  </p>
+  <p style="color:#065f46;font-weight:600;font-size:0.88rem;margin:0">
+  📧 contact@shipscan.in &nbsp;|&nbsp; 🌐 shipscan.in &nbsp;|&nbsp;
+  First analysis FREE &nbsp;|&nbsp; Monthly Rs.2,499
+  </p>
+</div>
+<div class="footer" style="margin-top:16px">
   Generated by ShipScan &nbsp;•&nbsp; shipscan.in &nbsp;•&nbsp;
-  To print as PDF: Ctrl+P → Save as PDF in your browser
+  To save as PDF: Ctrl+P → Save as PDF
 </div>
 
 </body></html>"""
@@ -1419,27 +1368,90 @@ if high_ids:
             Flagged by ML pattern detection — statistically unusual combination of signals.
             </div>""", unsafe_allow_html=True)
 
-        st.markdown("<br>**Feature Snapshot**", unsafe_allow_html=True)
-        features_data = {
-            "Txns last 1h":     int(chosen.get("txn_count_1h",0)),
-            "Txns last 24h":    int(chosen.get("txn_count_24h",0)),
-            "User avg spend":   f"Rs.{chosen.get('avg_amount_user',0):,.0f}",
-            "Deviation":        f"{chosen.get('amount_deviation',0):.2f}σ",
-            "IP shared by":     f"{int(chosen.get('ip_user_count',1))} users",
-            "Device shared by": f"{int(chosen.get('device_user_count',1))} users",
-            "Location match":   "No ⚠️" if chosen.get("location_mismatch",0) else "Yes ✅",
-            "Night txn":        "Yes ⚠️" if chosen.get("is_night",0) else "No ✅",
-            "First ever txn":   "Yes ⚠️" if chosen.get("is_first_txn",0) else "No ✅",
-        }
-        for feat,val in features_data.items():
-            val_str = str(val)
-            st.markdown(f"""
-            <div style="display:flex;justify-content:space-between;align-items:center;
-            padding:7px 0;border-bottom:1px solid #080f1e">
-                <span style="color:#475569;font-size:0.82rem">{feat}</span>
-                <span style="color:#e2e8f0;font-size:0.82rem;font-family:'JetBrains Mono'"
-                title="{val_str}">{val_str}</span>
-            </div>""", unsafe_allow_html=True)
+        # Business-language interpretation of technical signals
+        st.markdown("<br><strong style='color:#94a3b8'>What This Tells You</strong>",
+                    unsafe_allow_html=True)
+        
+        biz_signals = []
+        ip_count  = int(chosen.get("ip_user_count", 1))
+        dev_count = int(chosen.get("device_user_count", 1))
+        txn_1h    = int(chosen.get("txn_count_1h", 0))
+        txn_24h   = int(chosen.get("txn_count_24h", 0))
+        deviation = chosen.get("amount_deviation", 0)
+        is_night  = chosen.get("is_night", 0)
+        is_first  = chosen.get("is_first_txn", 0)
+        location_mismatch = chosen.get("location_mismatch", 0)
+        avg_spend = chosen.get("avg_amount_user", 0)
+        
+        if ip_count >= 3:
+            biz_signals.append((
+                "⚠️",
+                f"Same IP used across {ip_count} accounts",
+                "Strong indication of coordinated fraud — one person controlling multiple accounts",
+                "#ef4444"
+            ))
+        if dev_count >= 3:
+            biz_signals.append((
+                "⚠️",
+                f"Same device used by {dev_count} different customers",
+                "Device fingerprint shared — accounts likely operated by same individual",
+                "#ef4444"
+            ))
+        if txn_1h > 3:
+            biz_signals.append((
+                "🚨",
+                f"{txn_1h} orders placed in the last hour",
+                "Unusually high order frequency — possible automated ordering or abuse",
+                "#f59e0b"
+            ))
+        if deviation > 2:
+            biz_signals.append((
+                "⚠️",
+                f"Order value is {deviation:.1f}x above this customer's usual spend",
+                "Sudden large purchase from a low-spend account is a common fraud signal",
+                "#f59e0b"
+            ))
+        if is_first and chosen.get("amount", 0) > amount_threshold:
+            biz_signals.append((
+                "🚨",
+                "First-ever order is high-value",
+                "No purchase history to verify intent — call before dispatching COD",
+                "#ef4444"
+            ))
+        if location_mismatch:
+            biz_signals.append((
+                "⚠️",
+                "Delivery location differs from customer's usual area",
+                "Address inconsistency — could indicate account takeover or misuse",
+                "#f59e0b"
+            ))
+        if is_night:
+            biz_signals.append((
+                "ℹ️",
+                "Order placed between 11pm and 5am",
+                "Night orders have higher fraud correlation — not conclusive alone",
+                "#64748b"
+            ))
+        
+        if not biz_signals:
+            biz_signals.append((
+                "🤖", 
+                "Flagged by ML pattern detection",
+                "Statistical combination of signals is unusual — review before dispatching",
+                "#3b82f6"
+            ))
+        
+        for icon, signal, meaning, color in biz_signals:
+            st.markdown(
+                '<div style="background:#080f1e;border-left:3px solid ' + color + ';'
+                'border-radius:6px;padding:10px 14px;margin-bottom:8px">'
+                '<div style="color:' + color + ';font-size:0.82rem;font-weight:600">'
+                + icon + ' ' + signal + '</div>'
+                '<div style="color:#64748b;font-size:0.78rem;margin-top:3px;line-height:1.4">'
+                + meaning + '</div>'
+                '</div>',
+                unsafe_allow_html=True
+            )
 
 # ── INSIGHTS ──────────────────────────────────────────────────────────────────
 st.markdown('<div class="section-title">⚡ What You Should Change Immediately</div>', unsafe_allow_html=True)
@@ -1539,6 +1551,56 @@ with ins3:
     </div>""", unsafe_allow_html=True)
 
 # ── MODEL DETAILS ─────────────────────────────────────────────────────────────
+# ── CTA BANNER ───────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="cta-banner">
+    <div style="font-size:1.5rem;margin-bottom:8px">👉</div>
+    <h3 style="color:#10b981;margin:0 0 8px;font-size:1.1rem">
+    Want This Monitored Continuously?</h3>
+    <p style="color:#94a3b8;font-size:0.88rem;margin:0 0 16px;max-width:500px;margin-left:auto;margin-right:auto">
+    We can run this analysis weekly or monthly for your store and send you a report
+    whenever new risk patterns appear — before they cost you money.
+    </p>
+    <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
+        <div style="background:#0d2d1a;border:1px solid #10b981;border-radius:8px;
+        padding:10px 20px;color:#10b981;font-weight:600;font-size:0.85rem">
+        ✅ First analysis — FREE
+        </div>
+        <div style="background:#0d1f3c;border:1px solid #3b82f6;border-radius:8px;
+        padding:10px 20px;color:#60a5fa;font-weight:600;font-size:0.85rem">
+        📊 Monthly monitoring — Rs.2,499/mo
+        </div>
+        <div style="background:#1a1f3c;border:1px solid #8b5cf6;border-radius:8px;
+        padding:10px 20px;color:#a78bfa;font-weight:600;font-size:0.85rem">
+        🚀 Weekly reports — Rs.5,999/mo
+        </div>
+    </div>
+    <p style="color:#334155;font-size:0.78rem;margin:16px 0 0">
+    📧 contact@shipscan.in &nbsp;|&nbsp; 🌐 shipscan.in
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+# ── DATA TOOLS — moved to bottom, hidden by default ───────────────────────────
+with st.expander("⚙️ Advanced Data Tools — Column Calculator & Data Cleaning", expanded=False):
+    st.caption("These tools help prepare your data if it has non-standard formats.")
+    tool_tab1, tool_tab2 = st.tabs(["💰 Calculate Amount Column", "🧹 Data Cleaning"])
+    with tool_tab1:
+        st.markdown("If your file has separate Units and Price columns, calculate the total amount here.")
+        all_cols = scored.columns.tolist()
+        cc1, cc2 = st.columns(2)
+        with cc1:
+            units_col = st.selectbox("Units / Quantity column", ["-- select --"] + all_cols, key="units_col_b")
+        with cc2:
+            price_col = st.selectbox("Price / Rate column", ["-- select --"] + all_cols, key="price_col_b")
+        if st.button("Calculate Amount", key="calc_btn_b"):
+            if units_col != "-- select --" and price_col != "-- select --":
+                st.success(f"Amount = {units_col} × {price_col} — re-upload your file with this calculated column for analysis.")
+            else:
+                st.warning("Select both columns")
+    with tool_tab2:
+        st.info("Data cleaning is applied automatically during analysis. Common operations: duplicate removal, whitespace stripping, payment method standardisation, zero-amount filtering.")
+
 # ── MODEL ACCURACY — always visible, not hidden in expander ──────────────────
 st.markdown('<div class="section-title">Model Accuracy & Technical Details</div>', unsafe_allow_html=True)
 
