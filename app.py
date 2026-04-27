@@ -936,61 +936,67 @@ n_new_high_val  = scored[(scored.get("is_first_txn",
                   (scored["amount"] > amount_threshold)].shape[0] if "is_first_txn" in scored.columns else 0
 top_risk_users  = scored[scored["risk_label"]=="High"]["user_id"].value_counts().head(3)
 
-alert_color = "#dc2626" if high_risk_pct >= high_risk_threshold else "#d97706"
+# Pre-compute everything before building HTML — avoids f-string conflicts
+alert_color      = "#dc2626" if high_risk_pct >= high_risk_threshold else "#d97706"
+amount_at_risk_f = f"Rs.{amount_at_risk:,.0f}"
+est_loss_f       = f"Rs.{est_actual_loss:,.0f}"
+monthly_range_f  = f"Rs.{monthly_low:,.0f} to Rs.{monthly_high:,.0f}"
+risk_pct_f       = f"{high_risk_pct:.1f}%"
+risk_comment     = ("That is above average — immediate action recommended."
+                    if high_risk_pct > 8
+                    else "This is within typical range — still worth reviewing flagged orders.")
 
-st.markdown(f"""
-<div style="background:linear-gradient(135deg,#1a0808 0%,#2d0f0f 100%);
-border:2px solid {alert_color};border-radius:16px;padding:28px 32px;margin-bottom:24px">
+hero_html = (
+    '<div style="background:linear-gradient(135deg,#1a0808 0%,#2d0f0f 100%);'
+    'border:2px solid ' + alert_color + ';border-radius:16px;padding:28px 32px;margin-bottom:24px">'
 
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-        <span style="font-size:1.5rem">🚨</span>
-        <span style="font-size:0.75rem;font-weight:700;color:{alert_color};
-        text-transform:uppercase;letter-spacing:0.15em">
-        Revenue Risk & Order Analysis Report
-        </span>
-    </div>
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'
+    '<span style="font-size:1.5rem">🚨</span>'
+    '<span style="font-size:0.75rem;font-weight:700;color:' + alert_color + ';'
+    'text-transform:uppercase;letter-spacing:0.15em">Revenue Risk &amp; Order Analysis Report</span>'
+    '</div>'
 
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:20px">
-        <div>
-            <div style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;
-            letter-spacing:0.1em;margin-bottom:6px">Estimated Revenue at Risk</div>
-            <div style="font-size:2.8rem;font-weight:900;color:#ef4444;
-            font-family:'JetBrains Mono',monospace;line-height:1">
-            Rs.{amount_at_risk:,.0f}</div>
-            <div style="color:#64748b;font-size:0.75rem;margin-top:6px">
-            Based on detected high-risk order patterns in your data</div>
-        </div>
-        <div>
-            <div style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;
-            letter-spacing:0.1em;margin-bottom:6px">Estimated Actual Loss</div>
-            <div style="font-size:2.8rem;font-weight:900;color:#f59e0b;
-            font-family:'JetBrains Mono',monospace;line-height:1">
-            Rs.{est_actual_loss:,.0f}</div>
-            <div style="color:#64748b;font-size:0.75rem;margin-top:6px">
-            Conservative estimate — 40% of flagged orders result in real loss</div>
-        </div>
-        <div>
-            <div style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;
-            letter-spacing:0.1em;margin-bottom:6px">Potential Monthly Impact</div>
-            <div style="font-size:2.8rem;font-weight:900;color:#a78bfa;
-            font-family:'JetBrains Mono',monospace;line-height:1">
-            Rs.{monthly_low:,.0f}–{monthly_high:,.0f}</div>
-            <div style="color:#64748b;font-size:0.75rem;margin-top:6px">
-            If current patterns continue unchecked</div>
-        </div>
-    </div>
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:20px">'
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(220,38,38,0.2)">
-        <span style="color:#64748b;font-size:0.78rem">
-        📊 Most eCommerce datasets show 8–15% of orders with hidden risk patterns.
-        Your dataset shows <strong style="color:#ef4444">{high_risk_pct:.1f}%</strong>
-        high-risk orders.
-        {"That is above average — immediate action recommended." if high_risk_pct > 8
-         else "This is within typical range — still worth reviewing flagged orders."}
-        </span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+    '<div>'
+    '<div style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;'
+    'letter-spacing:0.1em;margin-bottom:6px">Estimated Revenue at Risk</div>'
+    '<div style="font-size:2.8rem;font-weight:900;color:#ef4444;'
+    'font-family:monospace;line-height:1">' + amount_at_risk_f + '</div>'
+    '<div style="color:#64748b;font-size:0.75rem;margin-top:6px">'
+    'Based on detected high-risk order patterns in your data</div>'
+    '</div>'
+
+    '<div>'
+    '<div style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;'
+    'letter-spacing:0.1em;margin-bottom:6px">Estimated Actual Loss</div>'
+    '<div style="font-size:2.8rem;font-weight:900;color:#f59e0b;'
+    'font-family:monospace;line-height:1">' + est_loss_f + '</div>'
+    '<div style="color:#64748b;font-size:0.75rem;margin-top:6px">'
+    'Conservative estimate — 40% of flagged orders result in real loss</div>'
+    '</div>'
+
+    '<div>'
+    '<div style="color:#94a3b8;font-size:0.72rem;text-transform:uppercase;'
+    'letter-spacing:0.1em;margin-bottom:6px">Potential Monthly Impact</div>'
+    '<div style="font-size:2.8rem;font-weight:900;color:#a78bfa;'
+    'font-family:monospace;line-height:1">' + monthly_range_f + '</div>'
+    '<div style="color:#64748b;font-size:0.75rem;margin-top:6px">'
+    'If current patterns continue unchecked</div>'
+    '</div>'
+    '</div>'
+
+    '<div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(220,38,38,0.2)">'
+    '<span style="color:#64748b;font-size:0.78rem">'
+    '📊 Most eCommerce datasets show 8–15% of orders with hidden risk patterns. '
+    'Your dataset shows <strong style="color:#ef4444">' + risk_pct_f + '</strong> '
+    'high-risk orders. ' + risk_comment +
+    '</span>'
+    '</div>'
+    '</div>'
+)
+
+st.markdown(hero_html, unsafe_allow_html=True)
 
 # ── BUSINESS IMPACT SECTION ───────────────────────────────────────────────────
 st.markdown('<div class="section-title">📋 Business Impact — What This Means For You</div>',
@@ -1002,72 +1008,81 @@ cod_high = scored[(scored["risk_label"]=="High") &
                   (scored["payment_method"].str.lower().str.contains("cod", na=False))
                  ] if "payment_method" in scored.columns else pd.DataFrame()
 
+# Pre-compute all dynamic strings to avoid f-string HTML conflicts
+n_high_str    = f"{len(high_risk_df):,}"
+n_cod_str     = str(len(cod_high))
+n_fake_str    = str(n_fake_addr)
+n_ring_str    = str(n_fraud_ring)
+n_newhi_str   = str(n_new_high_val)
+n_vel_str     = str(n_velocity_att)
+pct_high_str  = f"{high_risk_pct:.1f}%"
+pct_med_str   = f"{len(medium_risk_df)/len(scored)*100:.1f}%"
+savings_low   = est_actual_loss * 0.5
+savings_high  = est_actual_loss * 0.8
+savings_str   = f"Rs.{savings_low:,.0f} to Rs.{savings_high:,.0f}"
+
+# Build loss detail lines
+loss_lines = f"<strong style='color:#e8eaf0'>{n_high_str} orders</strong> are flagged as likely causing loss.<br><br>"
+if len(cod_high) > 0:
+    loss_lines += f"<strong style='color:#e8eaf0'>{n_cod_str} are COD orders</strong> — highest risk as payment not yet collected.<br><br>"
+if n_fake_addr > 0:
+    loss_lines += f"<strong style='color:#e8eaf0'>{n_fake_str} have fake or incomplete addresses</strong> — likely undeliverable.<br><br>"
+if n_fraud_ring > 0:
+    loss_lines += f"<strong style='color:#e8eaf0'>{n_ring_str} show fraud ring patterns</strong> — multiple accounts from same location."
+
+# Build pattern highlights
+pattern_lines = ""
+if n_new_high_val > 0:
+    pattern_lines += f"<div style='padding:4px 0;border-bottom:1px solid #0d1f3c'>✦ <strong style='color:#e8eaf0'>{n_newhi_str} new users</strong> placed high-value first orders</div>"
+if n_fraud_ring > 0:
+    pattern_lines += f"<div style='padding:4px 0;border-bottom:1px solid #0d1f3c'>✦ <strong style='color:#e8eaf0'>{n_ring_str} addresses reused</strong> across multiple accounts</div>"
+if n_velocity_att > 0:
+    pattern_lines += f"<div style='padding:4px 0;border-bottom:1px solid #0d1f3c'>✦ <strong style='color:#e8eaf0'>{n_vel_str} velocity pattern orders</strong> — many in short bursts</div>"
+if n_fake_addr > 0:
+    pattern_lines += f"<div style='padding:4px 0;border-bottom:1px solid #0d1f3c'>✦ <strong style='color:#e8eaf0'>{n_fake_str} landmark-only addresses</strong> detected</div>"
+pattern_lines += f"<div style='padding:4px 0;border-bottom:1px solid #0d1f3c'>✦ <strong style='color:#e8eaf0'>{pct_high_str}</strong> of orders flagged high risk</div>"
+pattern_lines += f"<div style='padding:4px 0'>✦ <strong style='color:#e8eaf0'>{pct_med_str}</strong> of orders require monitoring</div>"
+
 with bi1:
-    st.markdown(f"""
-    <div class="insight-card">
-        <div style="font-size:1.4rem;margin-bottom:8px">💸</div>
-        <h4 style="color:#ef4444!important;margin:0 0 10px">Where Losses Come From</h4>
-        <p style="color:#94a3b8;font-size:0.85rem;line-height:1.7;margin:0">
-        <strong style="color:#e2e8f0">{len(high_risk_df):,} orders</strong> are
-        flagged as likely causing loss.<br><br>
-        {"<strong style='color:#e2e8f0'>" + str(len(cod_high)) +
-         " of these are COD orders</strong> — highest risk because payment hasn't been collected yet.<br><br>"
-         if len(cod_high) > 0 else ""}
-        {"<strong style='color:#e2e8f0'>" + str(n_fake_addr) +
-         " orders have fake or incomplete addresses</strong> — these will likely be undeliverable.<br><br>"
-         if n_fake_addr > 0 else ""}
-        {"<strong style='color:#e2e8f0'>" + str(n_fraud_ring) +
-         " orders show fraud ring patterns</strong> — multiple accounts from the same location."
-         if n_fraud_ring > 0 else ""}
-        </p>
-    </div>""", unsafe_allow_html=True)
+    bi1_html = (
+        '<div class="insight-card">'
+        '<div style="font-size:1.4rem;margin-bottom:8px">💸</div>'
+        '<h4 style="color:#ef4444;margin:0 0 10px">Where Losses Come From</h4>'
+        '<p style="color:#94a3b8;font-size:0.85rem;line-height:1.7;margin:0">'
+        + loss_lines +
+        '</p></div>'
+    )
+    st.markdown(bi1_html, unsafe_allow_html=True)
 
 with bi2:
-    st.markdown(f"""
-    <div class="insight-card">
-        <div style="font-size:1.4rem;margin-bottom:8px">🔍</div>
-        <h4 style="color:#f59e0b!important;margin:0 0 10px">Key Pattern Highlights</h4>
-        <div style="font-size:0.85rem;color:#94a3b8;line-height:1.8">
-        {"✦ <strong style='color:#e2e8f0'>" + str(n_new_high_val) +
-         " new users</strong> placed high-value first orders<br>"
-         if n_new_high_val > 0 else ""}
-        {"✦ <strong style='color:#e2e8f0'>" + str(n_fraud_ring) +
-         " addresses reused</strong> across multiple accounts<br>"
-         if n_fraud_ring > 0 else ""}
-        {"✦ <strong style='color:#e2e8f0'>" + str(n_velocity_att) +
-         " velocity pattern orders</strong> — many orders in short bursts<br>"
-         if n_velocity_att > 0 else ""}
-        {"✦ <strong style='color:#e2e8f0'>" + str(n_fake_addr) +
-         " landmark-only addresses</strong> detected (near water tank, opp gas agency)<br>"
-         if n_fake_addr > 0 else ""}
-        ✦ <strong style="color:#e2e8f0">{high_risk_pct:.1f}%</strong>
-        of orders flagged as high risk<br>
-        ✦ <strong style="color:#e2e8f0">
-        {len(medium_risk_df)/len(scored)*100:.1f}%</strong> require monitoring
-        </div>
-    </div>""", unsafe_allow_html=True)
+    bi2_html = (
+        '<div class="insight-card">'
+        '<div style="font-size:1.4rem;margin-bottom:8px">🔍</div>'
+        '<h4 style="color:#f59e0b;margin:0 0 10px">Key Pattern Highlights</h4>'
+        '<div style="font-size:0.85rem;color:#94a3b8;line-height:1.8">'
+        + pattern_lines +
+        '</div></div>'
+    )
+    st.markdown(bi2_html, unsafe_allow_html=True)
 
 with bi3:
-    savings_low  = est_actual_loss * 0.5
-    savings_high = est_actual_loss * 0.8
-    st.markdown(f"""
-    <div class="insight-card">
-        <div style="font-size:1.4rem;margin-bottom:8px">📈</div>
-        <h4 style="color:#10b981!important;margin:0 0 10px">Expected Improvement</h4>
-        <p style="color:#94a3b8;font-size:0.85rem;line-height:1.7;margin:0 0 12px">
-        If the recommended actions below are implemented:
-        </p>
-        <div style="background:#0a1628;border-radius:8px;padding:14px;
-        border-left:3px solid #10b981">
-            <div style="color:#64748b;font-size:0.72rem;text-transform:uppercase;
-            letter-spacing:0.08em;margin-bottom:4px">Potential Loss Reduction</div>
-            <div style="font-size:1.6rem;font-weight:800;color:#10b981;
-            font-family:'JetBrains Mono'">
-            Rs.{savings_low:,.0f} – Rs.{savings_high:,.0f}</div>
-            <div style="color:#475569;font-size:0.75rem;margin-top:4px">
-            Based on 50-80% action effectiveness</div>
-        </div>
-    </div>""", unsafe_allow_html=True)
+    bi3_html = (
+        '<div class="insight-card">'
+        '<div style="font-size:1.4rem;margin-bottom:8px">📈</div>'
+        '<h4 style="color:#10b981;margin:0 0 10px">Expected Improvement</h4>'
+        '<p style="color:#94a3b8;font-size:0.85rem;line-height:1.7;margin:0 0 12px">'
+        'If the recommended actions below are implemented:</p>'
+        '<div style="background:#0a1628;border-radius:8px;padding:14px;border-left:3px solid #10b981">'
+        '<div style="color:#64748b;font-size:0.72rem;text-transform:uppercase;'
+        'letter-spacing:0.08em;margin-bottom:4px">Potential Loss Reduction</div>'
+        '<div style="font-size:1.6rem;font-weight:800;color:#10b981;font-family:monospace">'
+        + savings_str +
+        '</div>'
+        '<div style="color:#475569;font-size:0.75rem;margin-top:4px">'
+        'Based on 50-80% action effectiveness</div>'
+        '</div></div>'
+    )
+    st.markdown(bi3_html, unsafe_allow_html=True)
 
 # ── SUMMARY METRICS ───────────────────────────────────────────────────────────
 st.markdown('<div class="section-title">📊 Order Risk Summary</div>', unsafe_allow_html=True)
