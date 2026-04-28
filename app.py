@@ -49,10 +49,13 @@ header { visibility: hidden !important; }
     max-width: 100% !important;
 }
 .hero-amount {
-    font-size: 2.8rem;
+    font-size: clamp(1.2rem, 2.5vw, 2rem);
     font-weight: 900;
     font-family: monospace;
-    line-height: 1;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .loss-line {
     background: linear-gradient(135deg,#1a0808,#2d0f0f);
@@ -942,6 +945,130 @@ banner_html = (
 )
 st.markdown(banner_html, unsafe_allow_html=True)
 
+# ── ACTION PANEL — "Action Required Today" ────────────────────────────────────
+st.markdown('<div class="section-title">🚨 Action Required Today</div>',
+            unsafe_allow_html=True)
+st.markdown(
+    '<p style="color:#64748b;font-size:0.82rem;margin:-12px 0 16px">'
+    'These are the specific steps you should take before your next shipment runs. '
+    'Each action is linked to a direct financial impact.</p>',
+    unsafe_allow_html=True
+)
+
+action_items = []
+
+# Action 1 — High risk orders
+if len(high_risk_df) > 0:
+    impact = amount_at_risk * 0.40
+    action_items.append({
+        "color": "#ef4444",
+        "icon": "🔴",
+        "title": f"Review {len(high_risk_df)} High-Risk Orders Before Shipping",
+        "what": "Go through each flagged order and verify the buyer via call or OTP before dispatching.",
+        "why": "These orders show patterns linked to returns, fake addresses, or account abuse.",
+        "impact": f"Ignoring them may lead to ~Rs.{impact:,.0f} in potential loss.",
+        "urgency": "TODAY"
+    })
+
+# Action 2 — New high-value buyers
+if n_new_high_val > 0:
+    impact2 = scored[(scored.get("is_first_txn", pd.Series([0]*len(scored)))==1) & (scored["risk_label"]=="High")]["amount"].sum() if "is_first_txn" in scored.columns else 0
+    action_items.append({
+        "color": "#f59e0b",
+        "icon": "🟠",
+        "title": f"Verify {n_new_high_val} First-Time High-Value Buyers Before Dispatch",
+        "what": "Call these customers or require OTP confirmation before shipping their orders.",
+        "why": "First-time buyers placing large COD orders have no purchase history — high failure risk.",
+        "impact": f"Could prevent Rs.{impact2:,.0f}+ in failed deliveries and COD losses.",
+        "urgency": "BEFORE NEXT DISPATCH"
+    })
+
+# Action 3 — Fraud ring / shared IPs
+if n_fraud_ring > 0:
+    action_items.append({
+        "color": "#f59e0b",
+        "icon": "🟠",
+        "title": f"Restrict COD for {n_fraud_ring} Orders from Shared Addresses or IPs",
+        "what": "Switch these orders to prepaid only, or call to verify before processing.",
+        "why": "Multiple accounts using same address or IP indicates coordinated fraud behaviour.",
+        "impact": "Immediate fix can reduce losses from repeat abuse significantly.",
+        "urgency": "THIS WEEK"
+    })
+
+# Action 4 — Fake addresses
+if n_fake_addr > 0:
+    action_items.append({
+        "color": "#8b5cf6",
+        "icon": "🟡",
+        "title": f"Cancel or Verify {n_fake_addr} Orders with Undeliverable Addresses",
+        "what": "Contact customers with landmark-only addresses (near water tank, opp gas agency) to confirm.",
+        "why": "These addresses cannot be reliably delivered — high RTO probability.",
+        "impact": "Prevents forward + reverse logistics cost with zero revenue.",
+        "urgency": "BEFORE SHIPPING"
+    })
+
+# Action 5 — Velocity
+if n_velocity_att > 0:
+    action_items.append({
+        "color": "#64748b",
+        "icon": "🟡",
+        "title": f"Investigate {n_velocity_att} Orders from Velocity Attack Pattern",
+        "what": "Check if these orders are from legitimate buyers or automated scripts.",
+        "why": "Multiple orders in short bursts from same source often indicates fraud automation.",
+        "impact": "Early detection prevents bulk losses from a single bad actor.",
+        "urgency": "THIS WEEK"
+    })
+
+# Render action items
+for i, action in enumerate(action_items):
+    st.markdown(
+        f'<div style="background:linear-gradient(135deg,#080f1e,#0a1628);'
+        f'border:1px solid {action["color"]}40;border-left:4px solid {action["color"]};'
+        f'border-radius:10px;padding:16px 20px;margin-bottom:10px">'
+        f'<div style="display:flex;justify-content:space-between;align-items:flex-start;'
+        f'flex-wrap:wrap;gap:8px;margin-bottom:8px">'
+        f'<div style="font-weight:700;color:#ffffff;font-size:0.95rem">'
+        f'{action["icon"]} {action["title"]}</div>'
+        f'<span style="background:{action["color"]};color:white;font-size:0.7rem;'
+        f'font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap">'
+        f'{action["urgency"]}</span>'
+        f'</div>'
+        f'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;flex-wrap:wrap">'
+        f'<div><div style="color:#475569;font-size:0.72rem;text-transform:uppercase;'
+        f'letter-spacing:0.08em;margin-bottom:3px">What to do</div>'
+        f'<div style="color:#94a3b8;font-size:0.82rem">{action["what"]}</div></div>'
+        f'<div><div style="color:#475569;font-size:0.72rem;text-transform:uppercase;'
+        f'letter-spacing:0.08em;margin-bottom:3px">Why it matters</div>'
+        f'<div style="color:#94a3b8;font-size:0.82rem">{action["why"]}</div></div>'
+        f'<div><div style="color:#475569;font-size:0.72rem;text-transform:uppercase;'
+        f'letter-spacing:0.08em;margin-bottom:3px">Financial impact if ignored</div>'
+        f'<div style="color:{action["color"]};font-size:0.82rem;font-weight:600">'
+        f'{action["impact"]}</div></div>'
+        f'</div></div>',
+        unsafe_allow_html=True
+    )
+
+# If nothing is a problem
+if not action_items:
+    st.success("✅ No immediate high-priority actions required. Your order patterns look relatively clean.")
+
+# ── IF YOU DO NOTHING ─────────────────────────────────────────────────────────
+st.markdown(
+    f'<div style="background:#1a0808;border:1px solid #ef444430;border-radius:10px;'
+    f'padding:16px 20px;margin-top:4px;margin-bottom:24px">'
+    f'<div style="color:#ef4444;font-size:0.78rem;font-weight:700;text-transform:uppercase;'
+    f'letter-spacing:0.1em;margin-bottom:8px">⚠️ What Happens If No Action Is Taken?</div>'
+    f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;flex-wrap:wrap">'
+    f'<div style="color:#94a3b8;font-size:0.82rem">'
+    f'→ Estimated ongoing loss: <strong style="color:#ef4444">Rs.{monthly_low:,.0f}–Rs.{monthly_high:,.0f}/month</strong></div>'
+    f'<div style="color:#94a3b8;font-size:0.82rem">'
+    f'→ Return rate likely increases as repeat abusers are not blocked</div>'
+    f'<div style="color:#94a3b8;font-size:0.82rem">'
+    f'→ Same users will attempt abuse again with new account names</div>'
+    f'</div></div>',
+    unsafe_allow_html=True
+)
+
 # ── MONEY BREAKDOWN — Where losses come from ──────────────────────────────────
 st.markdown('<div class="section-title">💸 Where Your Losses Are Coming From</div>',
             unsafe_allow_html=True)
@@ -1309,6 +1436,129 @@ padding:20px;text-align:center;margin-top:24px">
         use_container_width=True
     )
     st.caption("Open the downloaded file in Chrome and press Ctrl+P → Save as PDF")
+
+# ── EXPORTABLE ACTION FILES ───────────────────────────────────────────────────
+st.markdown('<div class="section-title">📥 Apply Fixes Immediately — Download Action Files</div>',
+            unsafe_allow_html=True)
+st.markdown(
+    '<p style="color:#64748b;font-size:0.82rem;margin:-12px 0 16px">'
+    'Use these files to take action right now — block users, verify orders, '
+    'update your platform settings.</p>',
+    unsafe_allow_html=True
+)
+
+ef1, ef2, ef3 = st.columns(3)
+
+with ef1:
+    # High risk orders CSV
+    high_risk_export = high_risk_df[
+        [c for c in ["transaction_id","user_id","amount","payment_method",
+                     "location","fraud_score_pct","ip_address","device_id"]
+         if c in high_risk_df.columns]
+    ].copy()
+    high_risk_export.columns = [c.replace("_"," ").title() for c in high_risk_export.columns]
+    st.download_button(
+        "⬇️ High-Risk Orders List",
+        data=high_risk_export.to_csv(index=False),
+        file_name="shipscan_highrisk_orders.csv",
+        mime="text/csv",
+        use_container_width=True,
+        help="Upload this to your warehouse or ops team to hold these orders"
+    )
+    st.caption("Share with ops team — hold these before shipping")
+
+with ef2:
+    # Blocked users / IPs
+    block_df = scored[scored["risk_label"]=="High"][
+        [c for c in ["user_id","ip_address","location","fraud_score_pct"]
+         if c in scored.columns]
+    ].drop_duplicates(subset=["user_id"] if "user_id" in scored.columns else None)
+    block_df.columns = [c.replace("_"," ").title() for c in block_df.columns]
+    st.download_button(
+        "⬇️ Block List (Users & IPs)",
+        data=block_df.to_csv(index=False),
+        file_name="shipscan_blocklist.csv",
+        mime="text/csv",
+        use_container_width=True,
+        help="Add these to your platform blocklist to prevent repeat abuse"
+    )
+    st.caption("Add to platform blocklist — prevents repeat abuse")
+
+with ef3:
+    # Implementation guide as text
+    guide_lines = [
+        "SHIPSCAN — IMPLEMENTATION GUIDE",
+        "=" * 50,
+        "",
+        "IMMEDIATE STEPS (Do Today):",
+        "",
+        f"1. Review {len(high_risk_df)} high-risk orders before shipping.",
+        "   - Verify buyer via phone call or OTP",
+        "   - Confirm delivery address is real",
+        "   - Switch COD to prepaid where possible",
+        "",
+        f"2. For {n_new_high_val} first-time high-value orders:",
+        "   - Call customer before dispatching",
+        "   - Do not ship COD without confirmation",
+        "",
+        f"3. Block {len(scored[scored['ip_user_count']>=3]) if 'ip_user_count' in scored.columns else 0} IPs shared across multiple accounts:",
+        "   - Add to platform blacklist",
+        "   - Require prepaid for these users",
+        "",
+        "PLATFORM-SPECIFIC STEPS:",
+        "",
+        "Amazon Sellers:",
+        "  - Use Seller Central > Manage Orders to put orders on hold",
+        "  - File SAFE-T claims with pattern evidence from this report",
+        "",
+        "Shopify Sellers:",
+        "  - Use Fraud Filter app or manual review queue",
+        "  - Tag high-risk orders for ops team review",
+        "",
+        "Meesho / Flipkart Sellers:",
+        "  - Use seller panel to cancel suspicious orders",
+        "  - Report addresses to platform fraud team",
+        "",
+        "WEEKLY HABIT:",
+        "  - Run ShipScan analysis every week",
+        "  - Compare high-risk % week over week",
+        "  - Block new bad actors immediately",
+        "",
+        "=" * 50,
+        "ShipScan | shipscan.in | contact@shipscan.in",
+    ]
+    guide_text = chr(10).join(guide_lines)
+    st.download_button(
+        "⬇️ Implementation Guide (TXT)",
+        data=guide_text.encode("utf-8"),
+        file_name="shipscan_implementation_guide.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
+    st.caption("Step-by-step guide for Amazon, Shopify, Meesho")
+
+# ── NEXT ORDER PROTECTION + WEEKLY LOOP ──────────────────────────────────────
+st.markdown(
+    '<div style="background:linear-gradient(135deg,#0d1f3c,#0a1628);'
+    'border:1px solid #1e3a6b;border-radius:10px;padding:16px 20px;margin-top:8px;'
+    'display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">'
+    '<div style="flex:1;min-width:200px">'
+    '<div style="color:#60a5fa;font-weight:700;font-size:0.88rem;margin-bottom:4px">'
+    '🛡️ Use These Insights for Your NEXT Orders</div>'
+    '<div style="color:#64748b;font-size:0.82rem">'
+    'These patterns can help you prevent future losses starting today. '
+    'Apply the block list and implementation guide to your current workflow.</div>'
+    '</div>'
+    '<div style="flex:1;min-width:200px">'
+    '<div style="color:#10b981;font-weight:700;font-size:0.88rem;margin-bottom:4px">'
+    '🔄 Recommended: Run This Analysis Weekly</div>'
+    '<div style="color:#64748b;font-size:0.82rem">'
+    'New fraud patterns emerge constantly. Running ShipScan weekly ensures '
+    'you catch new bad actors before they cost you more.</div>'
+    '</div>'
+    '</div>',
+    unsafe_allow_html=True
+)
 
 # ── TRANSACTION EXPLAINER ─────────────────────────────────────────────────────
 st.markdown('<div class="section-title">🔍 Order Investigation Tool</div>', unsafe_allow_html=True)
