@@ -23,379 +23,390 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
-/* ── HIDE STREAMLIT BRANDING ── */
-#MainMenu { visibility: hidden !important; }
-footer { visibility: hidden !important; }
-header { visibility: hidden !important; }
-[data-testid="stToolbar"] { display: none !important; }
-[data-testid="stDecoration"] { display: none !important; }
-[data-testid="stStatusWidget"] { display: none !important; }
-.viewerBadge_container__1QSob { display: none !important; }
-.styles_viewerBadge__1yB5_ { display: none !important; }
+/* ── GLOBAL RESET ── */
+html, body, [class*="css"] {
+    font-family: 'Space Grotesk', sans-serif;
+    color: #e2e8f0;
+}
+.stApp { background: #060b18; }
 
-/* ── MOBILE RESPONSIVE ── */
-@media (max-width: 768px) {
-    .hero-grid { grid-template-columns: 1fr !important; }
-    .stat-card { min-height: auto !important; padding: 14px !important; }
-    .insight-card { padding: 14px !important; min-height: auto !important; }
-    [data-testid="stMetricValue"] { font-size: 1.3rem !important; }
-    .card-value { font-size: 1.4rem !important; }
-    .hero-amount { font-size: 2rem !important; }
-    button { width: 100% !important; }
+/* ── HIDE STREAMLIT CHROME ── */
+#MainMenu, footer, header,
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"],
+.viewerBadge_container__1QSob { display: none !important; }
+
+/* ── CONSISTENT CARD ── */
+.card {
+    background: #0d1625;
+    border: 1px solid #1a2d4a;
+    border-radius: 12px;
+    padding: 20px 24px;
+    height: 100%;
+    box-sizing: border-box;
 }
-* {
-    word-wrap: break-word !important;
-    overflow-wrap: anywhere !important;
-    max-width: 100% !important;
+.card-accent-red    { border-left: 3px solid #ef4444; }
+.card-accent-amber  { border-left: 3px solid #f59e0b; }
+.card-accent-green  { border-left: 3px solid #10b981; }
+.card-accent-blue   { border-left: 3px solid #3b82f6; }
+.card-accent-purple { border-left: 3px solid #8b5cf6; }
+
+.card h4 {
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 0 0 8px 0;
 }
+.card .card-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 4px;
+}
+.card .card-sub {
+    color: #475569;
+    font-size: 0.78rem;
+}
+
+/* ── SECTION TITLES ── */
+.section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    border-bottom: 1px solid #0d1625;
+    padding-bottom: 10px;
+    margin: 48px 0 20px 0;
+}
+
+/* ── HERO AMOUNTS ── */
 .hero-amount {
-    font-size: clamp(1.2rem, 2.5vw, 2rem);
-    font-weight: 900;
-    font-family: monospace;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(1.1rem, 2vw, 1.8rem);
+    font-weight: 800;
     line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
 }
+
+/* ── ACTION ITEMS ── */
+.action-card {
+    background: #0d1625;
+    border: 1px solid #1a2d4a;
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+.action-card .action-left { flex: 2; min-width: 0; }
+.action-card .action-right {
+    flex: 1;
+    min-width: 140px;
+    text-align: right;
+}
+.action-title {
+    font-weight: 600;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+.action-body {
+    color: #64748b;
+    font-size: 0.8rem;
+    line-height: 1.5;
+}
+.action-impact {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-top: 4px;
+}
+.urgency-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.06em;
+}
+
+/* ── LOSS LINES ── */
 .loss-line {
-    background: linear-gradient(135deg,#1a0808,#2d0f0f);
-    border-left: 4px solid #ef4444;
+    background: #0d1625;
+    border: 1px solid #1a2d4a;
+    border-left: 3px solid #ef4444;
     border-radius: 8px;
     padding: 12px 16px;
-    margin-bottom: 10px;
-}
-.action-line {
-    background: #080f1e;
-    border-left: 3px solid #ef4444;
-    border-radius: 6px;
-    padding: 12px 16px;
     margin-bottom: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
 }
-.cta-banner {
-    background: linear-gradient(135deg,#0d2d1a,#0a1f12);
-    border: 1px solid #10b981;
+
+/* ── INSIGHT CARDS ── */
+.insight-card {
+    background: #0d1625;
+    border: 1px solid #1a2d4a;
     border-radius: 12px;
-    padding: 24px;
-    text-align: center;
-    margin-top: 32px;
+    padding: 20px;
+}
+.insight-card h4 {
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin: 0 0 12px 0;
 }
 
-/* ── BASE ── */
-html, body, [class*="css"] {
-    font-family: 'Space Grotesk', sans-serif;
-    color: #f0f4ff;
+/* ── ITEM BOXES (IPs, users) ── */
+.item-box {
+    background: #080f1e;
+    border: 1px solid #1a2d4a;
+    border-radius: 6px;
+    padding: 7px 12px;
+    margin: 4px 0;
+    font-family: 'JetBrains Mono', monospace;
+    color: #60a5fa;
+    font-size: 0.82rem;
+    cursor: default;
+    transition: background 0.15s;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
-.stApp { background: #060b18; }
-
-/* ── REMOVE ALL GHOST/TRANSPARENT BOXES ── */
-/* This is the core fix for the transparent box issue */
-div[data-testid="stVerticalBlock"] > div:has(> div.stRadio) { background: transparent !important; }
-div[class*="stRadio"] > div { background: transparent !important; border: none !important; }
-[data-testid="stForm"] { background: transparent !important; border: none !important; }
-div[data-baseweb="card"] { background: transparent !important; border: none !important; box-shadow: none !important; }
-.element-container { background: transparent !important; }
-div[data-testid="column"] > div { background: transparent !important; }
-section[data-testid="stSidebar"] > div { background: transparent !important; }
-
-/* ── MULTISELECT FIX — show full text, no cutoff ── */
-[data-baseweb="tag"] {
-    background: #1a3a6b !important;
-    color: #60a5fa !important;
-    border: 1px solid #3b82f6 !important;
-    border-radius: 6px !important;
-    max-width: 120px !important;
-    overflow: visible !important;
-    white-space: nowrap !important;
-    padding: 2px 8px !important;
-}
-[data-baseweb="tag"] span {
-    color: #60a5fa !important;
-    overflow: visible !important;
-    text-overflow: unset !important;
-}
-[data-baseweb="select"] > div {
-    background: #0d1f3c !important;
-    border: 1px solid #1e3a6b !important;
-    border-radius: 8px !important;
-    min-height: 44px !important;
-}
-[data-baseweb="select"] span { color: #f0f4ff !important; }
-[data-baseweb="popover"] { background: #0d1f3c !important; border: 1px solid #1e3a6b !important; border-radius: 8px !important; }
-[data-baseweb="menu"] { background: #0d1f3c !important; }
-[data-baseweb="menu"] li { background: #0d1f3c !important; color: #f0f4ff !important; padding: 10px 16px !important; }
-[data-baseweb="menu"] li:hover { background: #1a3a6b !important; }
-[role="option"] { background: #0d1f3c !important; color: #f0f4ff !important; }
-
-/* ── INPUTS ── */
-input, textarea {
-    background: #0d1f3c !important;
-    color: #f0f4ff !important;
-    border: 1px solid #1e3a6b !important;
-    border-radius: 8px !important;
-}
-[data-testid="stNumberInput"] > div {
-    background: #0d1f3c !important;
-    border: 1px solid #1e3a6b !important;
-    border-radius: 8px !important;
-}
-[data-testid="stNumberInput"] input { background: #0d1f3c !important; color: #f0f4ff !important; }
-[data-testid="stNumberInput"] button { background: #1a3a6b !important; color: #60a5fa !important; border: none !important; }
-
-/* ── FILE UPLOADER ── */
-[data-testid="stFileUploader"] section {
-    background: #0d1f3c !important;
-    border: 2px dashed #1e3a6b !important;
-    border-radius: 12px !important;
-}
-[data-testid="stFileUploader"] * { color: #94a3b8 !important; }
-[data-testid="stFileUploader"] button {
-    background: #1a3a6b !important;
-    color: #60a5fa !important;
-    border: 1px solid #3b82f6 !important;
-    border-radius: 8px !important;
+.item-box:hover {
+    background: #1a2d4a;
+    color: #93c5fd;
+    white-space: normal;
+    word-break: break-all;
 }
 
-/* ── SLIDER ── */
-[data-testid="stSlider"] { padding: 12px 0 !important; }
-[data-testid="stSlider"] [data-baseweb="slider"] { margin-top: 14px !important; }
-[data-testid="stSlider"] [data-baseweb="slider"] > div:first-child {
-    background: #1e3a6b !important;
-    height: 6px !important;
-    border-radius: 3px !important;
-}
-[data-testid="stSlider"] [role="slider"] {
-    background: #3b82f6 !important;
-    border: 3px solid #93c5fd !important;
-    width: 20px !important;
-    height: 20px !important;
-    box-shadow: 0 0 12px rgba(59,130,246,0.6) !important;
-}
-[data-testid="stSlider"] p {
-    color: #60a5fa !important;
-    font-family: 'JetBrains Mono', monospace !important;
-    font-weight: 600 !important;
-    background: #0d1f3c !important;
-    border: 1px solid #1e3a6b !important;
-    border-radius: 6px !important;
-    padding: 2px 10px !important;
-    display: inline-block !important;
-}
-
-/* ── LABELS ── */
-label, [data-testid="stWidgetLabel"] p { color: #94a3b8 !important; font-size: 0.82rem !important; letter-spacing: 0.03em !important; }
-p, li { color: #e2e8f0 !important; }
-h1, h2, h3, h4 { color: #ffffff !important; font-weight: 700 !important; }
-small, .stCaption { color: #64748b !important; }
-
-/* ── METRICS — uniform size, bright colors, hover ── */
+/* ── METRIC CARDS ── */
 [data-testid="stMetric"] {
-    background: linear-gradient(135deg, #0d1f3c 0%, #0f2647 100%) !important;
+    background: #0d1625 !important;
+    border: 1px solid #1a2d4a !important;
     border-radius: 12px !important;
-    padding: 20px !important;
-    border: 1px solid #1e3a6b !important;
-    min-height: 110px !important;
-    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
-    cursor: default !important;
-}
-[data-testid="stMetric"]:hover {
-    transform: translateY(-3px) !important;
-    box-shadow: 0 8px 30px rgba(59,130,246,0.2) !important;
-    border-color: #3b82f6 !important;
+    padding: 18px !important;
+    min-height: 100px !important;
 }
 [data-testid="stMetricLabel"] {
-    color: #94a3b8 !important;
-    font-size: 0.75rem !important;
+    color: #475569 !important;
+    font-size: 0.72rem !important;
     text-transform: uppercase !important;
     letter-spacing: 0.08em !important;
 }
 [data-testid="stMetricValue"] {
     color: #ffffff !important;
     font-family: 'JetBrains Mono', monospace !important;
-    font-size: 1.7rem !important;
-    font-weight: 600 !important;
-}
-[data-testid="stMetricDelta"] { font-size: 0.8rem !important; }
-
-/* ── ALERTS with hover ── */
-[data-testid="stAlert"] {
-    border-radius: 10px !important;
-    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
-}
-[data-testid="stAlert"]:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.4) !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
 }
 
-/* ── CODE BLOCKS — dark ── */
-[data-testid="stCode"] {
-    background: #0d1f3c !important;
-    border: 1px solid #1e3a6b !important;
+/* ── STAT CARDS ── */
+.stat-card {
+    background: #0d1625;
+    border: 1px solid #1a2d4a;
+    border-radius: 12px;
+    padding: 18px 20px;
+    min-height: 100px;
+}
+.stat-card .card-label {
+    color: #475569;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+}
+.stat-card .card-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.1;
+}
+.stat-card .card-sub {
+    color: #334155;
+    font-size: 0.75rem;
+    margin-top: 4px;
+}
+
+/* ── RISK BADGES ── */
+.badge-high   { background:#dc2626; color:#fff !important; padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; display:inline-block; }
+.badge-medium { background:#d97706; color:#fff !important; padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; display:inline-block; }
+.badge-low    { background:#059669; color:#fff !important; padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; display:inline-block; }
+
+/* ── MAPPER BOX ── */
+.mapper-box {
+    background: #0d1625;
+    border: 1px solid #1a2d4a;
+    border-radius: 10px;
+    padding: 18px;
+    margin: 12px 0;
+}
+
+/* ── CTA BANNER ── */
+.cta-banner {
+    background: #0d1625;
+    border: 1px solid #1a2d4a;
+    border-top: 2px solid #10b981;
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    margin-top: 48px;
+}
+
+/* ── REASON BOXES ── */
+.reason-box {
+    background: rgba(239,68,68,0.06);
+    border-left: 3px solid #ef4444;
+    border-radius: 0 6px 6px 0;
+    padding: 9px 14px;
+    margin: 6px 0;
+    color: #fca5a5 !important;
+    font-size: 0.85rem;
+}
+
+/* ── INPUTS ── */
+input, textarea {
+    background: #0d1625 !important;
+    color: #e2e8f0 !important;
+    border: 1px solid #1a2d4a !important;
     border-radius: 8px !important;
 }
-[data-testid="stCode"] pre { background: #0d1f3c !important; }
-[data-testid="stCode"] code { background: transparent !important; color: #60a5fa !important; border: none !important; }
-code { background: #0d1f3c !important; color: #60a5fa !important; border: 1px solid #1e3a6b !important; padding: 2px 8px !important; border-radius: 4px !important; }
-pre { background: #0d1f3c !important; color: #60a5fa !important; border-radius: 8px !important; }
+[data-testid="stNumberInput"] > div {
+    background: #0d1625 !important;
+    border: 1px solid #1a2d4a !important;
+    border-radius: 8px !important;
+}
+[data-testid="stNumberInput"] input { background: #0d1625 !important; color: #e2e8f0 !important; }
+[data-testid="stNumberInput"] button { background: #1a2d4a !important; color: #60a5fa !important; border: none !important; }
+
+/* ── FILE UPLOADER ── */
+[data-testid="stFileUploader"] section {
+    background: #0d1625 !important;
+    border: 2px dashed #1a2d4a !important;
+    border-radius: 10px !important;
+}
+[data-testid="stFileUploader"] * { color: #64748b !important; }
+[data-testid="stFileUploader"] button {
+    background: #1a2d4a !important;
+    color: #60a5fa !important;
+    border: 1px solid #3b82f6 !important;
+    border-radius: 6px !important;
+}
+
+/* ── SELECTS ── */
+[data-baseweb="select"] > div {
+    background: #0d1625 !important;
+    border-color: #1a2d4a !important;
+    color: #e2e8f0 !important;
+    min-height: 40px !important;
+}
+[data-baseweb="select"] span { color: #e2e8f0 !important; }
+[data-baseweb="popover"], [data-baseweb="menu"] {
+    background: #0d1625 !important;
+    border: 1px solid #1a2d4a !important;
+}
+[data-baseweb="menu"] li { background: #0d1625 !important; color: #e2e8f0 !important; padding: 9px 16px !important; }
+[data-baseweb="menu"] li:hover { background: #1a2d4a !important; }
+[data-baseweb="tag"] { background: #1a2d4a !important; color: #60a5fa !important; }
+
+/* ── SLIDER ── */
+[data-testid="stSlider"] { padding: 10px 0 !important; }
+[data-testid="stSlider"] [data-baseweb="slider"] > div:first-child {
+    background: #1a2d4a !important;
+    height: 4px !important;
+    border-radius: 2px !important;
+}
+[data-testid="stSlider"] [role="slider"] {
+    background: #3b82f6 !important;
+    border: 2px solid #60a5fa !important;
+    width: 16px !important;
+    height: 16px !important;
+}
+[data-testid="stSlider"] p {
+    color: #60a5fa !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-weight: 600 !important;
+    background: #0d1625 !important;
+    border: 1px solid #1a2d4a !important;
+    border-radius: 6px !important;
+    padding: 2px 8px !important;
+    display: inline-block !important;
+}
+
+/* ── RADIO ── */
+[data-testid="stRadio"] label { color: #94a3b8 !important; }
+
+/* ── LABELS ── */
+label, [data-testid="stWidgetLabel"] p { color: #475569 !important; font-size: 0.8rem !important; }
+
+/* ── TEXT ── */
+p, li, .stMarkdown { color: #94a3b8 !important; }
+h1, h2, h3, h4 { color: #ffffff !important; font-weight: 700 !important; }
+small, .stCaption { color: #334155 !important; }
+
+/* ── DATAFRAME ── */
+[data-testid="stDataFrame"] { border: 1px solid #1a2d4a !important; border-radius: 10px !important; overflow: hidden !important; }
 
 /* ── BUTTONS ── */
 .stDownloadButton button {
-    background: linear-gradient(135deg, #1a3a6b, #1e4080) !important;
+    background: #0d1625 !important;
     color: #60a5fa !important;
-    border: 1px solid #3b82f6 !important;
+    border: 1px solid #1a2d4a !important;
     border-radius: 8px !important;
-    padding: 8px 20px !important;
     font-weight: 600 !important;
-    transition: all 0.15s ease !important;
+    transition: all 0.15s !important;
 }
-.stDownloadButton button:hover {
-    background: #2563eb !important;
-    color: #ffffff !important;
-}
-/* Fix ALL buttons — including Contact and Home */
-button[kind="secondary"], button[data-testid="baseButton-secondary"] {
-    background: #0d1f3c !important;
-    color: #60a5fa !important;
-    border: 1px solid #1e3a6b !important;
-    border-radius: 8px !important;
-}
-button[kind="secondary"]:hover, button[data-testid="baseButton-secondary"]:hover {
-    background: #1a3a6b !important;
-    color: #ffffff !important;
-    border-color: #3b82f6 !important;
-}
+.stDownloadButton button:hover { background: #1a2d4a !important; }
 button[kind="primary"], button[data-testid="baseButton-primary"] {
     background: linear-gradient(135deg,#1d4ed8,#2563eb) !important;
     color: #ffffff !important;
     border: none !important;
     border-radius: 8px !important;
 }
+button[kind="secondary"], button[data-testid="baseButton-secondary"] {
+    background: #0d1625 !important;
+    color: #60a5fa !important;
+    border: 1px solid #1a2d4a !important;
+    border-radius: 8px !important;
+}
 
 /* ── EXPANDER ── */
 .streamlit-expanderHeader {
-    background: #0d1f3c !important;
-    border: 1px solid #1e3a6b !important;
+    background: #0d1625 !important;
+    border: 1px solid #1a2d4a !important;
     border-radius: 8px !important;
-    color: #94a3b8 !important;
+    color: #475569 !important;
 }
 .streamlit-expanderContent {
     background: #080f1e !important;
-    border: 1px solid #1e3a6b !important;
-    border-radius: 0 0 8px 8px !important;
+    border: 1px solid #1a2d4a !important;
 }
 
-/* ── DATAFRAME ── */
-[data-testid="stDataFrame"] { border: 1px solid #1e3a6b !important; border-radius: 10px !important; overflow: hidden !important; }
+/* ── CODE ── */
+code { background: #0d1625 !important; color: #60a5fa !important; border: 1px solid #1a2d4a !important; padding: 2px 6px !important; border-radius: 4px !important; }
 
-/* ── CUSTOM COMPONENTS ── */
-.section-title {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: #475569 !important;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    border-bottom: 1px solid #0d1f3c;
-    padding-bottom: 10px;
-    margin: 36px 0 20px 0;
-}
+/* ── ALERTS ── */
+[data-testid="stAlert"] { border-radius: 8px !important; }
 
-/* Cards — same height, hover effect */
-.stat-card {
-    background: linear-gradient(135deg, #0d1f3c 0%, #0a1628 100%);
-    border: 1px solid #1e3a6b;
-    border-radius: 12px;
-    padding: 20px;
-    min-height: 100px;
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
+/* ── MOBILE ── */
+@media (max-width: 768px) {
+    .stat-card { padding: 14px !important; }
+    .insight-card { padding: 14px !important; }
+    .hero-amount { font-size: 1.2rem !important; }
+    .action-card { flex-direction: column !important; }
+    .action-card .action-right { text-align: left !important; }
 }
-.stat-card:hover {
-    border-color: #3b82f6;
-    box-shadow: 0 8px 32px rgba(59,130,246,0.15);
-    transform: translateY(-2px);
-}
-.stat-card .card-label {
-    font-size: 0.72rem;
-    color: #475569;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 8px;
-}
-.stat-card .card-value {
-    font-size: 1.8rem;
-    font-weight: 700;
-    font-family: 'JetBrains Mono', monospace;
-    color: #ffffff;
-    line-height: 1;
-}
-.stat-card .card-sub {
-    font-size: 0.78rem;
-    color: #64748b;
-    margin-top: 6px;
-}
-
-/* Insight cards — equal height */
-.insight-card {
-    background: linear-gradient(135deg, #0d1f3c 0%, #0a1628 100%);
-    border: 1px solid #1e3a6b;
-    border-radius: 12px;
-    padding: 18px;
-    transition: all 0.2s ease;
-}
-.insight-card:hover {
-    border-color: #3b82f6;
-    box-shadow: 0 0 28px rgba(59,130,246,0.12);
-}
-.insight-card h4 { color: #60a5fa !important; margin: 0 0 14px 0 !important; font-size: 1rem !important; }
-
-/* IP / user display boxes */
-.item-box {
-    background: #0a1628;
-    border: 1px solid #1e3a6b;
-    border-radius: 8px;
-    padding: 9px 14px;
-    margin: 5px 0;
-    font-family: 'JetBrains Mono', monospace;
-    color: #60a5fa;
-    font-size: 0.85rem;
-    cursor: default;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.item-box:hover {
-    background: #1a3a6b;
-    border-color: #3b82f6;
-    color: #93c5fd;
-    overflow: visible;
-    white-space: normal;
-    word-break: break-all;
-    z-index: 10;
-    position: relative;
-    box-shadow: 0 4px 20px rgba(59,130,246,0.3);
-}
-
-/* Risk badges */
-.badge-high   { background: linear-gradient(135deg,#dc2626,#b91c1c); color:white !important; padding:4px 14px; border-radius:20px; font-size:0.78rem; font-weight:700; display:inline-block; letter-spacing:0.05em; }
-.badge-medium { background: linear-gradient(135deg,#d97706,#b45309); color:white !important; padding:4px 14px; border-radius:20px; font-size:0.78rem; font-weight:700; display:inline-block; letter-spacing:0.05em; }
-.badge-low    { background: linear-gradient(135deg,#059669,#047857); color:white !important; padding:4px 14px; border-radius:20px; font-size:0.78rem; font-weight:700; display:inline-block; letter-spacing:0.05em; }
-
-/* Mapper box */
-.mapper-box { background: #0d1f3c; border: 1px solid #1e3a6b; border-radius: 12px; padding: 20px; margin: 16px 0; }
-
-/* Reason flags */
-.reason-box {
-    background: rgba(220,38,38,0.08);
-    border-left: 3px solid #dc2626;
-    border-radius: 0 6px 6px 0;
-    padding: 10px 14px;
-    margin: 6px 0;
-    color: #fca5a5 !important;
-    font-size: 0.88rem;
-    transition: background 0.15s;
-}
-.reason-box:hover { background: rgba(220,38,38,0.15); }
+* { word-wrap: break-word; overflow-wrap: anywhere; max-width: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -899,47 +910,44 @@ risk_comment   = "Above average — immediate action recommended." if high_risk_
 
 # ── ALERT BANNER ──────────────────────────────────────────────────────────────
 banner_html = (
-    '<div style="background:linear-gradient(135deg,#1a0808,#2d0f0f);'
-    'border:2px solid ' + alert_color + ';border-radius:14px;padding:20px 24px;'
-    'margin-bottom:20px">'
+    '<div style="background:#0d1625;border:1px solid #1a2d4a;border-top:3px solid '
+    + alert_color + ';border-radius:12px;padding:24px;margin-bottom:24px">'
 
-    '<div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">'
-    '<div style="flex:1;min-width:200px">'
-    '<div style="color:#ef4444;font-size:0.72rem;font-weight:700;'
-    'text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">'
-    '🚨 Revenue at Risk — Based on Historical Order Patterns</div>'
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:16px">'
+
+    '<div>'
+    '<div style="color:#475569;font-size:0.7rem;font-weight:700;text-transform:uppercase;'
+    'letter-spacing:0.1em;margin-bottom:6px">🚨 Revenue at Risk</div>'
     '<div class="hero-amount" style="color:#ef4444">' + amt_risk_s + '</div>'
-    '<div style="color:#64748b;font-size:0.78rem;margin-top:4px">'
-    'From ' + str(len(high_risk_df)) + ' flagged orders in your data</div>'
+    '<div style="color:#334155;font-size:0.75rem;margin-top:4px">'
+    'From ' + str(len(high_risk_df)) + ' flagged orders</div>'
     '</div>'
 
-    '<div style="flex:1;min-width:200px">'
-    '<div style="color:#f59e0b;font-size:0.72rem;font-weight:700;'
-    'text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">'
-    '⚠️ If Patterns Continue — Monthly Impact</div>'
+    '<div>'
+    '<div style="color:#475569;font-size:0.7rem;font-weight:700;text-transform:uppercase;'
+    'letter-spacing:0.1em;margin-bottom:6px">⚠️ Monthly Impact if Ignored</div>'
     '<div class="hero-amount" style="color:#f59e0b">' + monthly_s + '</div>'
-    '<div style="color:#64748b;font-size:0.78rem;margin-top:4px">'
-    'Projected loss per month if not addressed</div>'
+    '<div style="color:#334155;font-size:0.75rem;margin-top:4px">'
+    'Projected loss per month</div>'
     '</div>'
 
-    '<div style="flex:1;min-width:200px">'
-    '<div style="color:#10b981;font-size:0.72rem;font-weight:700;'
-    'text-transform:uppercase;letter-spacing:0.12em;margin-bottom:6px">'
-    '✅ Potential Savings — If Actions Taken</div>'
+    '<div>'
+    '<div style="color:#475569;font-size:0.7rem;font-weight:700;text-transform:uppercase;'
+    'letter-spacing:0.1em;margin-bottom:6px">✅ Savings if Actions Taken</div>'
     '<div class="hero-amount" style="color:#10b981">' + savings_s + '</div>'
-    '<div style="color:#64748b;font-size:0.78rem;margin-top:4px">'
-    'Based on 50–80% action effectiveness</div>'
+    '<div style="color:#334155;font-size:0.75rem;margin-top:4px">'
+    '50–80% action effectiveness</div>'
     '</div>'
     '</div>'
 
-    '<div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(220,38,38,0.15);'
+    '<div style="padding-top:14px;border-top:1px solid #1a2d4a;'
     'display:flex;align-items:center;gap:16px;flex-wrap:wrap">'
-    '<span style="background:#1a0808;border:1px solid #ef4444;border-radius:20px;'
-    'padding:4px 14px;color:#fca5a5;font-size:0.8rem;font-weight:600">'
-    '1 in every ~' + str(orders_per_risk) + ' orders shows loss patterns</span>'
-    '<span style="color:#64748b;font-size:0.78rem">'
-    '📊 Most eCommerce datasets show 8–15% hidden risk. Yours shows '
-    '<strong style="color:#ef4444">' + pct_s + '</strong>. ' + risk_comment + '</span>'
+    '<span style="background:#0d1625;border:1px solid #ef444466;border-radius:20px;'
+    'padding:3px 12px;color:#fca5a5;font-size:0.75rem;font-weight:600">'
+    '1 in ~' + str(orders_per_risk) + ' orders shows loss patterns</span>'
+    '<span style="color:#334155;font-size:0.75rem">'
+    '📊 Industry average: 8–15% hidden risk. Your data: '
+    '<strong style="color:#e2e8f0">' + pct_s + '</strong>. ' + risk_comment + '</span>'
     '</div>'
     '</div>'
 )
@@ -1019,55 +1027,55 @@ if n_velocity_att > 0:
         "urgency": "THIS WEEK"
     })
 
-# Render action items
+# Render action items using clean card system
 for i, action in enumerate(action_items):
-    st.markdown(
-        f'<div style="background:linear-gradient(135deg,#080f1e,#0a1628);'
-        f'border:1px solid {action["color"]}40;border-left:4px solid {action["color"]};'
-        f'border-radius:10px;padding:16px 20px;margin-bottom:10px">'
-        f'<div style="display:flex;justify-content:space-between;align-items:flex-start;'
-        f'flex-wrap:wrap;gap:8px;margin-bottom:8px">'
-        f'<div style="font-weight:700;color:#ffffff;font-size:0.95rem">'
-        f'{action["icon"]} {action["title"]}</div>'
-        f'<span style="background:{action["color"]};color:white;font-size:0.7rem;'
-        f'font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap">'
-        f'{action["urgency"]}</span>'
-        f'</div>'
-        f'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;flex-wrap:wrap">'
-        f'<div><div style="color:#475569;font-size:0.72rem;text-transform:uppercase;'
-        f'letter-spacing:0.08em;margin-bottom:3px">What to do</div>'
-        f'<div style="color:#94a3b8;font-size:0.82rem">{action["what"]}</div></div>'
-        f'<div><div style="color:#475569;font-size:0.72rem;text-transform:uppercase;'
-        f'letter-spacing:0.08em;margin-bottom:3px">Why it matters</div>'
-        f'<div style="color:#94a3b8;font-size:0.82rem">{action["why"]}</div></div>'
-        f'<div><div style="color:#475569;font-size:0.72rem;text-transform:uppercase;'
-        f'letter-spacing:0.08em;margin-bottom:3px">Financial impact if ignored</div>'
-        f'<div style="color:{action["color"]};font-size:0.82rem;font-weight:600">'
-        f'{action["impact"]}</div></div>'
-        f'</div></div>',
-        unsafe_allow_html=True
+    color = action["color"]
+    html = (
+        '<div class="action-card" style="border-left:3px solid ' + color + '">'
+        '<div class="action-left">'
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+        '<span class="action-title">' + action["icon"] + ' ' + action["title"] + '</span>'
+        '<span class="urgency-badge" style="background:' + color + '22;color:' + color + ';border:1px solid ' + color + '44">'
+        + action["urgency"] + '</span>'
+        '</div>'
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
+        '<div>'
+        '<div style="color:#334155;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px">What to do</div>'
+        '<div class="action-body">' + action["what"] + '</div>'
+        '</div>'
+        '<div>'
+        '<div style="color:#334155;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px">Why it matters</div>'
+        '<div class="action-body">' + action["why"] + '</div>'
+        '</div>'
+        '</div>'
+        '</div>'
+        '<div class="action-right">'
+        '<div style="color:#334155;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Impact if ignored</div>'
+        '<div class="action-impact" style="color:' + color + '">' + action["impact"] + '</div>'
+        '</div>'
+        '</div>'
     )
+    st.markdown(html, unsafe_allow_html=True)
 
 # If nothing is a problem
 if not action_items:
     st.success("✅ No immediate high-priority actions required. Your order patterns look relatively clean.")
 
 # ── IF YOU DO NOTHING ─────────────────────────────────────────────────────────
-st.markdown(
-    f'<div style="background:#1a0808;border:1px solid #ef444430;border-radius:10px;'
-    f'padding:16px 20px;margin-top:4px;margin-bottom:24px">'
-    f'<div style="color:#ef4444;font-size:0.78rem;font-weight:700;text-transform:uppercase;'
-    f'letter-spacing:0.1em;margin-bottom:8px">⚠️ What Happens If No Action Is Taken?</div>'
-    f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;flex-wrap:wrap">'
-    f'<div style="color:#94a3b8;font-size:0.82rem">'
-    f'→ Estimated ongoing loss: <strong style="color:#ef4444">Rs.{monthly_low:,.0f}–Rs.{monthly_high:,.0f}/month</strong></div>'
-    f'<div style="color:#94a3b8;font-size:0.82rem">'
-    f'→ Return rate likely increases as repeat abusers are not blocked</div>'
-    f'<div style="color:#94a3b8;font-size:0.82rem">'
-    f'→ Same users will attempt abuse again with new account names</div>'
-    f'</div></div>',
-    unsafe_allow_html=True
+nothing_low  = f"Rs.{monthly_low:,.0f}"
+nothing_high = f"Rs.{monthly_high:,.0f}"
+nothing_html = (
+    '<div class="card card-accent-red" style="margin-bottom:24px">'
+    '<div style="color:#ef4444;font-size:0.72rem;font-weight:700;text-transform:uppercase;'
+    'letter-spacing:0.1em;margin-bottom:12px">⚠️ What Happens If No Action Is Taken?</div>'
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">'
+    '<div style="color:#64748b;font-size:0.82rem">→ Estimated ongoing loss: '
+    '<strong style="color:#ef4444">' + nothing_low + '–' + nothing_high + '/month</strong></div>'
+    '<div style="color:#64748b;font-size:0.82rem">→ Return rate increases as repeat abusers remain unblocked</div>'
+    '<div style="color:#64748b;font-size:0.82rem">→ Same users attempt abuse again under new account names</div>'
+    '</div></div>'
 )
+st.markdown(nothing_html, unsafe_allow_html=True)
 
 # ── MONEY BREAKDOWN — Where losses come from ──────────────────────────────────
 st.markdown('<div class="section-title">💸 Where Your Losses Are Coming From</div>',
