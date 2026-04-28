@@ -21,392 +21,388 @@ st.set_page_config(
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
-/* ── GLOBAL RESET ── */
+/* ─────────────────────────────────────────────
+   RESET
+───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
 html, body, [class*="css"] {
-    font-family: 'Space Grotesk', sans-serif;
-    color: #e2e8f0;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: #cbd5e1;
+    background: #07101f;
 }
-.stApp { background: #060b18; }
+.stApp { background: #07101f; }
 
-/* ── HIDE STREAMLIT CHROME ── */
+/* ─────────────────────────────────────────────
+   HIDE STREAMLIT CHROME
+───────────────────────────────────────────── */
 #MainMenu, footer, header,
 [data-testid="stToolbar"],
 [data-testid="stDecoration"],
 [data-testid="stStatusWidget"],
 .viewerBadge_container__1QSob { display: none !important; }
 
-/* ── CONSISTENT CARD ── */
-.card {
-    background: #0d1625;
-    border: 1px solid #1a2d4a;
-    border-radius: 12px;
-    padding: 20px 24px;
-    height: 100%;
-    box-sizing: border-box;
+/* ─────────────────────────────────────────────
+   LAYOUT CONTAINER  — max 1280px, centred
+───────────────────────────────────────────── */
+[data-testid="stAppViewContainer"] > section > div {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px;
 }
-.card-accent-red    { border-left: 3px solid #ef4444; }
-.card-accent-amber  { border-left: 3px solid #f59e0b; }
-.card-accent-green  { border-left: 3px solid #10b981; }
-.card-accent-blue   { border-left: 3px solid #3b82f6; }
-.card-accent-purple { border-left: 3px solid #8b5cf6; }
 
-.card h4 {
-    color: #94a3b8;
-    font-size: 0.72rem;
-    font-weight: 600;
+/* ─────────────────────────────────────────────
+   SPACING SYSTEM
+   All sections get the same vertical gap.
+───────────────────────────────────────────── */
+.section-gap { margin-top: 48px; }
+
+.section-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #334155;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #0f1e35;
+    margin-bottom: 20px;
+}
+
+/* ─────────────────────────────────────────────
+   SINGLE CARD SYSTEM
+   One card. One style. Variants via modifier.
+───────────────────────────────────────────── */
+.ss-card {
+    background: #0c1a2e;
+    border: 1px solid #132035;
+    border-radius: 10px;
+    padding: 20px;
+    height: 100%;
+}
+
+/* Accent border — left side only, thin */
+.ss-card.red    { border-left: 3px solid #ef4444; }
+.ss-card.amber  { border-left: 3px solid #f59e0b; }
+.ss-card.green  { border-left: 3px solid #10b981; }
+.ss-card.blue   { border-left: 3px solid #3b82f6; }
+.ss-card.purple { border-left: 3px solid #8b5cf6; }
+
+/* Card label + value typography */
+.ss-label {
+    font-size: 10px;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    margin: 0 0 8px 0;
-}
-.card .card-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.6rem;
-    font-weight: 700;
-    line-height: 1.1;
-    margin-bottom: 4px;
-}
-.card .card-sub {
-    color: #475569;
-    font-size: 0.78rem;
-}
-
-/* ── SECTION TITLES ── */
-.section-title {
-    font-size: 0.7rem;
-    font-weight: 700;
     color: #334155;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    border-bottom: 1px solid #0d1625;
-    padding-bottom: 10px;
-    margin: 48px 0 20px 0;
+    margin-bottom: 6px;
 }
-
-/* ── HERO AMOUNTS ── */
-.hero-amount {
+.ss-value {
     font-family: 'JetBrains Mono', monospace;
-    font-size: clamp(1.1rem, 2vw, 1.8rem);
-    font-weight: 800;
-    line-height: 1.2;
+    font-size: clamp(1rem, 2.5vw, 1.75rem);
+    font-weight: 700;
+    line-height: 1.15;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 100%;
+    color: #f1f5f9;
 }
-
-/* ── ACTION ITEMS ── */
-.action-card {
-    background: #0d1625;
-    border: 1px solid #1a2d4a;
-    border-radius: 10px;
-    padding: 16px 20px;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-}
-.action-card .action-left { flex: 2; min-width: 0; }
-.action-card .action-right {
-    flex: 1;
-    min-width: 140px;
-    text-align: right;
-}
-.action-title {
-    font-weight: 600;
-    color: #e2e8f0;
-    font-size: 0.9rem;
-    margin-bottom: 4px;
-}
-.action-body {
-    color: #64748b;
-    font-size: 0.8rem;
-    line-height: 1.5;
-}
-.action-impact {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.85rem;
-    font-weight: 700;
+.ss-sub {
+    font-size: 11px;
+    color: #334155;
     margin-top: 4px;
 }
-.urgency-badge {
-    display: inline-block;
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 20px;
-    letter-spacing: 0.06em;
-}
 
-/* ── LOSS LINES ── */
-.loss-line {
-    background: #0d1625;
-    border: 1px solid #1a2d4a;
-    border-left: 3px solid #ef4444;
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-
-/* ── INSIGHT CARDS ── */
-.insight-card {
-    background: #0d1625;
-    border: 1px solid #1a2d4a;
-    border-radius: 12px;
+/* Aliases kept for backward compat — all map to ss-card */
+.stat-card, .insight-card, .action-card,
+.loss-line, .mapper-box, .cta-banner {
+    background: #0c1a2e;
+    border: 1px solid #132035;
+    border-radius: 10px;
     padding: 20px;
 }
-.insight-card h4 {
-    font-size: 0.88rem;
-    font-weight: 600;
-    margin: 0 0 12px 0;
-}
+.card-label  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #334155; margin-bottom: 6px; }
+.card-value  { font-family: 'JetBrains Mono', monospace; font-size: clamp(1rem, 2.5vw, 1.75rem); font-weight: 700; line-height: 1.15; color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-sub    { font-size: 11px; color: #334155; margin-top: 4px; }
+.hero-amount { font-family: 'JetBrains Mono', monospace; font-size: clamp(1rem, 2.5vw, 1.75rem); font-weight: 700; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ── ITEM BOXES (IPs, users) ── */
-.item-box {
-    background: #080f1e;
-    border: 1px solid #1a2d4a;
-    border-radius: 6px;
-    padding: 7px 12px;
-    margin: 4px 0;
-    font-family: 'JetBrains Mono', monospace;
-    color: #60a5fa;
-    font-size: 0.82rem;
-    cursor: default;
-    transition: background 0.15s;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.item-box:hover {
-    background: #1a2d4a;
-    color: #93c5fd;
-    white-space: normal;
-    word-break: break-all;
-}
+/* ─────────────────────────────────────────────
+   BADGES
+───────────────────────────────────────────── */
+.badge-high   { background: #7f1d1d; color: #fca5a5 !important; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
+.badge-medium { background: #78350f; color: #fcd34d !important; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
+.badge-low    { background: #064e3b; color: #6ee7b7 !important; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block; }
+.urgency-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.06em; }
 
-/* ── METRIC CARDS ── */
+/* ─────────────────────────────────────────────
+   TYPOGRAPHY
+───────────────────────────────────────────── */
+p, li, .stMarkdown { color: #64748b !important; }
+h1, h2, h3, h4     { color: #f1f5f9 !important; font-weight: 600 !important; margin: 0 0 8px; }
+small, .stCaption   { color: #334155 !important; }
+
+/* ─────────────────────────────────────────────
+   METRICS (Streamlit native)
+───────────────────────────────────────────── */
 [data-testid="stMetric"] {
-    background: #0d1625 !important;
-    border: 1px solid #1a2d4a !important;
-    border-radius: 12px !important;
-    padding: 18px !important;
-    min-height: 100px !important;
+    background: #0c1a2e !important;
+    border: 1px solid #132035 !important;
+    border-radius: 10px !important;
+    padding: 18px 20px !important;
 }
 [data-testid="stMetricLabel"] {
-    color: #475569 !important;
-    font-size: 0.72rem !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.08em !important;
+    letter-spacing: 0.1em !important;
+    color: #334155 !important;
 }
 [data-testid="stMetricValue"] {
-    color: #ffffff !important;
     font-family: 'JetBrains Mono', monospace !important;
     font-size: 1.5rem !important;
     font-weight: 700 !important;
+    color: #f1f5f9 !important;
 }
 
-/* ── STAT CARDS ── */
-.stat-card {
-    background: #0d1625;
-    border: 1px solid #1a2d4a;
-    border-radius: 12px;
-    padding: 18px 20px;
-    min-height: 100px;
-}
-.stat-card .card-label {
-    color: #475569;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 8px;
-}
-.stat-card .card-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: #ffffff;
-    line-height: 1.1;
-}
-.stat-card .card-sub {
-    color: #334155;
-    font-size: 0.75rem;
-    margin-top: 4px;
-}
-
-/* ── RISK BADGES ── */
-.badge-high   { background:#dc2626; color:#fff !important; padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; display:inline-block; }
-.badge-medium { background:#d97706; color:#fff !important; padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; display:inline-block; }
-.badge-low    { background:#059669; color:#fff !important; padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:700; display:inline-block; }
-
-/* ── MAPPER BOX ── */
-.mapper-box {
-    background: #0d1625;
-    border: 1px solid #1a2d4a;
-    border-radius: 10px;
-    padding: 18px;
-    margin: 12px 0;
-}
-
-/* ── CTA BANNER ── */
-.cta-banner {
-    background: #0d1625;
-    border: 1px solid #1a2d4a;
-    border-top: 2px solid #10b981;
-    border-radius: 12px;
-    padding: 24px;
-    text-align: center;
-    margin-top: 48px;
-}
-
-/* ── REASON BOXES ── */
-.reason-box {
-    background: rgba(239,68,68,0.06);
-    border-left: 3px solid #ef4444;
-    border-radius: 0 6px 6px 0;
-    padding: 9px 14px;
-    margin: 6px 0;
-    color: #fca5a5 !important;
-    font-size: 0.85rem;
-}
-
-/* ── INPUTS ── */
+/* ─────────────────────────────────────────────
+   INPUTS
+───────────────────────────────────────────── */
 input, textarea {
-    background: #0d1625 !important;
+    background: #0c1a2e !important;
     color: #e2e8f0 !important;
-    border: 1px solid #1a2d4a !important;
+    border: 1px solid #132035 !important;
     border-radius: 8px !important;
 }
 [data-testid="stNumberInput"] > div {
-    background: #0d1625 !important;
-    border: 1px solid #1a2d4a !important;
+    background: #0c1a2e !important;
+    border: 1px solid #132035 !important;
     border-radius: 8px !important;
 }
-[data-testid="stNumberInput"] input { background: #0d1625 !important; color: #e2e8f0 !important; }
-[data-testid="stNumberInput"] button { background: #1a2d4a !important; color: #60a5fa !important; border: none !important; }
+[data-testid="stNumberInput"] input { background: #0c1a2e !important; color: #e2e8f0 !important; }
+[data-testid="stNumberInput"] button { background: #132035 !important; color: #60a5fa !important; border: none !important; }
 
-/* ── FILE UPLOADER ── */
+/* ─────────────────────────────────────────────
+   FILE UPLOADER
+───────────────────────────────────────────── */
 [data-testid="stFileUploader"] section {
-    background: #0d1625 !important;
-    border: 2px dashed #1a2d4a !important;
+    background: #0c1a2e !important;
+    border: 2px dashed #132035 !important;
     border-radius: 10px !important;
 }
-[data-testid="stFileUploader"] * { color: #64748b !important; }
+[data-testid="stFileUploader"] * { color: #334155 !important; background: transparent !important; }
 [data-testid="stFileUploader"] button {
-    background: #1a2d4a !important;
+    background: #132035 !important;
     color: #60a5fa !important;
-    border: 1px solid #3b82f6 !important;
+    border: 1px solid #1e3a5f !important;
     border-radius: 6px !important;
 }
 
-/* ── SELECTS ── */
-[data-baseweb="select"] > div {
-    background: #0d1625 !important;
-    border-color: #1a2d4a !important;
-    color: #e2e8f0 !important;
+/* ─────────────────────────────────────────────
+   SELECTBOX — fixed ghost container bug
+   Key: do NOT style [data-baseweb="select"] > div
+   Style the trigger div and list items instead.
+───────────────────────────────────────────── */
+[data-baseweb="select"] {
+    background: #0c1a2e !important;
+}
+[data-baseweb="select"] [data-testid="stSelectboxVirtualDropdown"],
+[data-baseweb="select"] > div > div {
+    background: #0c1a2e !important;
+    border: 1px solid #132035 !important;
+    border-radius: 8px !important;
     min-height: 40px !important;
+    color: #e2e8f0 !important;
 }
-[data-baseweb="select"] span { color: #e2e8f0 !important; }
-[data-baseweb="popover"], [data-baseweb="menu"] {
-    background: #0d1625 !important;
-    border: 1px solid #1a2d4a !important;
-}
-[data-baseweb="menu"] li { background: #0d1625 !important; color: #e2e8f0 !important; padding: 9px 16px !important; }
-[data-baseweb="menu"] li:hover { background: #1a2d4a !important; }
-[data-baseweb="tag"] { background: #1a2d4a !important; color: #60a5fa !important; }
+[data-baseweb="select"] svg { fill: #334155 !important; }
+[data-baseweb="select"] [data-baseweb="select-option"] { display: none; }
 
-/* ── SLIDER ── */
+/* Dropdown list */
+[data-baseweb="popover"] {
+    background: #0c1a2e !important;
+    border: 1px solid #132035 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+}
+[data-baseweb="menu"] { background: #0c1a2e !important; }
+[data-baseweb="menu"] [role="option"] {
+    background: #0c1a2e !important;
+    color: #cbd5e1 !important;
+    padding: 9px 14px !important;
+    font-size: 13px !important;
+}
+[data-baseweb="menu"] [role="option"]:hover,
+[data-baseweb="menu"] [aria-selected="true"] {
+    background: #132035 !important;
+    color: #f1f5f9 !important;
+}
+[data-baseweb="tag"] {
+    background: #132035 !important;
+    color: #60a5fa !important;
+    border: none !important;
+}
+
+/* ─────────────────────────────────────────────
+   SLIDER
+───────────────────────────────────────────── */
 [data-testid="stSlider"] { padding: 10px 0 !important; }
 [data-testid="stSlider"] [data-baseweb="slider"] > div:first-child {
-    background: #1a2d4a !important;
-    height: 4px !important;
-    border-radius: 2px !important;
+    background: #132035 !important; height: 4px !important; border-radius: 2px !important;
 }
 [data-testid="stSlider"] [role="slider"] {
-    background: #3b82f6 !important;
-    border: 2px solid #60a5fa !important;
-    width: 16px !important;
-    height: 16px !important;
+    background: #3b82f6 !important; border: 2px solid #60a5fa !important;
+    width: 16px !important; height: 16px !important;
 }
 [data-testid="stSlider"] p {
     color: #60a5fa !important;
     font-family: 'JetBrains Mono', monospace !important;
-    font-weight: 600 !important;
-    background: #0d1625 !important;
-    border: 1px solid #1a2d4a !important;
-    border-radius: 6px !important;
-    padding: 2px 8px !important;
+    font-size: 12px !important;
+    background: #0c1a2e !important;
+    border: 1px solid #132035 !important;
+    border-radius: 4px !important;
+    padding: 1px 7px !important;
     display: inline-block !important;
 }
 
-/* ── RADIO ── */
-[data-testid="stRadio"] label { color: #94a3b8 !important; }
+/* ─────────────────────────────────────────────
+   RADIO
+───────────────────────────────────────────── */
+[data-testid="stRadio"] label { color: #64748b !important; font-size: 13px !important; }
 
-/* ── LABELS ── */
-label, [data-testid="stWidgetLabel"] p { color: #475569 !important; font-size: 0.8rem !important; }
-
-/* ── TEXT ── */
-p, li, .stMarkdown { color: #94a3b8 !important; }
-h1, h2, h3, h4 { color: #ffffff !important; font-weight: 700 !important; }
-small, .stCaption { color: #334155 !important; }
-
-/* ── DATAFRAME ── */
-[data-testid="stDataFrame"] { border: 1px solid #1a2d4a !important; border-radius: 10px !important; overflow: hidden !important; }
-
-/* ── BUTTONS ── */
-.stDownloadButton button {
-    background: #0d1625 !important;
-    color: #60a5fa !important;
-    border: 1px solid #1a2d4a !important;
-    border-radius: 8px !important;
+/* ─────────────────────────────────────────────
+   LABELS
+───────────────────────────────────────────── */
+label, [data-testid="stWidgetLabel"] p {
+    color: #334155 !important;
+    font-size: 11px !important;
     font-weight: 600 !important;
-    transition: all 0.15s !important;
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase !important;
 }
-.stDownloadButton button:hover { background: #1a2d4a !important; }
+
+/* ─────────────────────────────────────────────
+   DATAFRAME
+───────────────────────────────────────────── */
+[data-testid="stDataFrame"] {
+    border: 1px solid #132035 !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+}
+
+/* ─────────────────────────────────────────────
+   BUTTONS
+───────────────────────────────────────────── */
+.stDownloadButton button {
+    background: #0c1a2e !important;
+    color: #60a5fa !important;
+    border: 1px solid #132035 !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    padding: 8px 16px !important;
+    transition: background 0.15s !important;
+}
+.stDownloadButton button:hover { background: #132035 !important; }
+
 button[kind="primary"], button[data-testid="baseButton-primary"] {
-    background: linear-gradient(135deg,#1d4ed8,#2563eb) !important;
-    color: #ffffff !important;
+    background: #2563eb !important;
+    color: #fff !important;
     border: none !important;
     border-radius: 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
 }
 button[kind="secondary"], button[data-testid="baseButton-secondary"] {
-    background: #0d1625 !important;
+    background: #0c1a2e !important;
     color: #60a5fa !important;
-    border: 1px solid #1a2d4a !important;
+    border: 1px solid #132035 !important;
     border-radius: 8px !important;
+    font-size: 13px !important;
 }
 
-/* ── EXPANDER ── */
+/* ─────────────────────────────────────────────
+   EXPANDER
+───────────────────────────────────────────── */
 .streamlit-expanderHeader {
-    background: #0d1625 !important;
-    border: 1px solid #1a2d4a !important;
+    background: #0c1a2e !important;
+    border: 1px solid #132035 !important;
     border-radius: 8px !important;
-    color: #475569 !important;
+    color: #334155 !important;
+    font-size: 12px !important;
 }
 .streamlit-expanderContent {
-    background: #080f1e !important;
-    border: 1px solid #1a2d4a !important;
+    background: #07101f !important;
+    border: 1px solid #132035 !important;
+    border-top: none !important;
+    border-radius: 0 0 8px 8px !important;
 }
 
-/* ── CODE ── */
-code { background: #0d1625 !important; color: #60a5fa !important; border: 1px solid #1a2d4a !important; padding: 2px 6px !important; border-radius: 4px !important; }
+/* ─────────────────────────────────────────────
+   ALERTS
+───────────────────────────────────────────── */
+[data-testid="stAlert"] { border-radius: 8px !important; font-size: 13px !important; }
 
-/* ── ALERTS ── */
-[data-testid="stAlert"] { border-radius: 8px !important; }
+/* ─────────────────────────────────────────────
+   CODE
+───────────────────────────────────────────── */
+code {
+    background: #0c1a2e !important;
+    color: #60a5fa !important;
+    border: 1px solid #132035 !important;
+    padding: 1px 5px !important;
+    border-radius: 4px !important;
+    font-size: 12px !important;
+}
 
-/* ── MOBILE ── */
+/* ─────────────────────────────────────────────
+   ITEM BOXES (IPs, users)
+───────────────────────────────────────────── */
+.item-box {
+    background: #07101f;
+    border: 1px solid #132035;
+    border-radius: 6px;
+    padding: 6px 12px;
+    margin: 3px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #60a5fa;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: default;
+    transition: background 0.12s;
+}
+.item-box:hover { background: #132035; white-space: normal; word-break: break-all; }
+
+/* ─────────────────────────────────────────────
+   REASON BOXES
+───────────────────────────────────────────── */
+.reason-box {
+    background: transparent;
+    border-left: 2px solid #ef4444;
+    padding: 8px 12px;
+    margin: 5px 0;
+    color: #fca5a5 !important;
+    font-size: 13px;
+    border-radius: 0 6px 6px 0;
+}
+
+/* ─────────────────────────────────────────────
+   ACTION CARD
+───────────────────────────────────────────── */
+.action-title  { font-weight: 600; color: #e2e8f0; font-size: 13px; margin-bottom: 4px; }
+.action-body   { color: #475569; font-size: 12px; line-height: 1.5; }
+.action-impact { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; margin-top: 4px; }
+
+/* ─────────────────────────────────────────────
+   MOBILE
+───────────────────────────────────────────── */
 @media (max-width: 768px) {
-    .stat-card { padding: 14px !important; }
-    .insight-card { padding: 14px !important; }
-    .hero-amount { font-size: 1.2rem !important; }
-    .action-card { flex-direction: column !important; }
-    .action-card .action-right { text-align: left !important; }
+    .ss-card, .stat-card, .insight-card { padding: 14px !important; }
+    .ss-value, .card-value, .hero-amount { font-size: 1.1rem !important; }
 }
-* { word-wrap: break-word; overflow-wrap: anywhere; max-width: 100%; }
+* { word-wrap: break-word; overflow-wrap: anywhere; }
 </style>
 """, unsafe_allow_html=True)
 
