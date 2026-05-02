@@ -233,9 +233,15 @@ button[kind="primary"]:hover, button[data-testid="baseButton-primary"]:hover {
     background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
     color: #ffffff !important;
 }
-/* Fix: ensure stButton wrapper is visible */
+/* Force all button text white */
+button p, button span, button div, .stButton p,
+button[kind="primary"] p { color: #ffffff !important; }
 .stButton { opacity: 1 !important; visibility: visible !important; }
 .stButton > button { opacity: 1 !important; visibility: visible !important; }
+.stButton > button > div > p {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
 button[kind="secondary"], button[data-testid="baseButton-secondary"] {
     background: #0d1625 !important; color: #60a5fa !important;
     border: 1px solid #1a2d4a !important; border-radius: 8px !important; font-size: 13px !important;
@@ -796,13 +802,33 @@ with st.spinner("Running fraud detection — rules + ML..."):
 
 st.caption(f"Analysis complete in {elapsed:.1f}s — {metrics.get('mode','ML')} mode")
 
+# ── DEFINE CORE VARIABLES immediately after scored is available ───────────────
+high_risk_df   = scored[scored["risk_label"]=="High"]
+medium_risk_df = scored[scored["risk_label"]=="Medium"]
+low_risk_df    = scored[scored["risk_label"]=="Low"]
+high_risk_pct  = len(high_risk_df) / len(scored) * 100
+amount_at_risk = high_risk_df["amount"].sum()
+est_actual_loss = amount_at_risk * 0.40
+_ts            = pd.to_datetime(scored["timestamp"], errors="coerce")
+_days_span     = max((_ts.max() - _ts.min()).days, 1)
+_daily_leak    = est_actual_loss / _days_span
+monthly_days   = _days_span
+monthly_proj   = est_actual_loss * (30 / monthly_days)
+monthly_low    = monthly_proj * 0.7
+monthly_high   = monthly_proj * 1.3
+savings_low    = est_actual_loss * 0.5
+savings_high   = est_actual_loss * 0.8
+
+# Pattern counts
+n_fraud_ring   = int(scored[scored["address_user_count"] >= 3].shape[0]) if "address_user_count" in scored.columns else 0
+n_fake_addr    = int(scored[scored["is_landmark_only"] == True].shape[0]) if "is_landmark_only" in scored.columns else 0
+n_velocity_att = int(scored[scored["txn_count_1h"] > 5].shape[0]) if "txn_count_1h" in scored.columns else 0
+n_new_high_val = int(scored[(scored["is_first_txn"]==1) & (scored["amount"] > amount_threshold)].shape[0]) if "is_first_txn" in scored.columns else 0
+cod_high       = scored[(scored["risk_label"]=="High") & (scored["payment_method"].str.lower().str.contains("cod", na=False))] if "payment_method" in scored.columns else pd.DataFrame()
+
 # ── MOMENT OF TRUTH — first thing seller sees ─────────────────────────────────
-_high_count  = len(scored[scored["risk_label"]=="High"])
+_high_count  = len(high_risk_df)
 _total       = len(scored)
-_at_risk_amt = scored[scored["risk_label"]=="High"]["amount"].sum()
-_ts          = pd.to_datetime(scored["timestamp"], errors="coerce")
-_days_span   = max((_ts.max() - _ts.min()).days, 1)
-_daily_leak  = (_at_risk_amt * 0.40) / _days_span
 
 if _high_count > 0:
     _daily_s = f"Rs.{_daily_leak:,.0f}"
@@ -832,24 +858,9 @@ if _high_count > 0:
 
 
 # ── TOP ALERT BANNER ─────────────────────────────────────────────────────────
-# Pre-compute all values
-est_actual_loss  = amount_at_risk * 0.40
-monthly_days     = max((scored["timestamp"].max() - scored["timestamp"].min()).days, 1)
-monthly_proj     = est_actual_loss * (30 / monthly_days)
-monthly_low      = monthly_proj * 0.7
-monthly_high     = monthly_proj * 1.3
-savings_low      = est_actual_loss * 0.5
-savings_high     = est_actual_loss * 0.8
-alert_color      = "#dc2626" if high_risk_pct >= high_risk_threshold else "#d97706"
-orders_per_risk  = max(int(len(scored) / max(len(high_risk_df), 1)), 1)
-
-# Pattern counts
-n_fraud_ring   = int(scored[scored.get("address_user_count", pd.Series([1]*len(scored))) >= 3].shape[0]) if "address_user_count" in scored.columns else 0
-n_fake_addr    = int(scored[scored.get("is_landmark_only", pd.Series([False]*len(scored))) == True].shape[0]) if "is_landmark_only" in scored.columns else 0
-n_velocity_att = int(scored[scored.get("txn_count_1h", pd.Series([0]*len(scored))) > 5].shape[0]) if "txn_count_1h" in scored.columns else 0
-n_new_high_val = int(scored[(scored.get("is_first_txn", pd.Series([0]*len(scored))) == 1) & (scored["amount"] > amount_threshold)].shape[0]) if "is_first_txn" in scored.columns else 0
-
-cod_high = scored[(scored["risk_label"]=="High") & (scored["payment_method"].str.lower().str.contains("cod", na=False))] if "payment_method" in scored.columns else pd.DataFrame()
+# Variables already computed above — just derive string versions and banner color
+alert_color     = "#dc2626" if high_risk_pct >= high_risk_threshold else "#d97706"
+orders_per_risk = max(int(len(scored) / max(len(high_risk_df), 1)), 1)
 
 # Build loss breakdown
 loss_from_newhi  = scored[(scored.get("is_first_txn", pd.Series([0]*len(scored)))==1) & (scored["risk_label"]=="High")]["amount"].sum() if "is_first_txn" in scored.columns else 0
