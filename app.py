@@ -224,9 +224,18 @@ label, [data-testid="stWidgetLabel"] p {
 /* ───────────────── BUTTONS ───────────────── */
 button[kind="primary"], button[data-testid="baseButton-primary"] {
     background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-    color: #fff !important; border: none !important;
-    border-radius: 8px !important; font-size: 13px !important; font-weight: 600 !important;
+    color: #ffffff !important; border: none !important;
+    border-radius: 8px !important; font-size: 14px !important; font-weight: 700 !important;
+    padding: 12px 24px !important; min-height: 48px !important;
+    opacity: 1 !important; visibility: visible !important;
 }
+button[kind="primary"]:hover, button[data-testid="baseButton-primary"]:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+    color: #ffffff !important;
+}
+/* Fix: ensure stButton wrapper is visible */
+.stButton { opacity: 1 !important; visibility: visible !important; }
+.stButton > button { opacity: 1 !important; visibility: visible !important; }
 button[kind="secondary"], button[data-testid="baseButton-secondary"] {
     background: #0d1625 !important; color: #60a5fa !important;
     border: 1px solid #1a2d4a !important; border-radius: 8px !important; font-size: 13px !important;
@@ -565,6 +574,23 @@ if not st.session_state.show_dashboard:
                 🔒 Access code required to upload your data</p>
             </div>
             """, unsafe_allow_html=True)
+            st.markdown("""
+            <style>
+            div[data-testid="stTextInput"] input::placeholder {
+                color: #475569 !important;
+                opacity: 1 !important;
+            }
+            div[data-testid="stTextInput"] input {
+                background: #0d1625 !important;
+                border: 1px solid #1a2d4a !important;
+                border-radius: 8px !important;
+                color: #e2e8f0 !important;
+                font-size: 14px !important;
+                padding: 10px 14px !important;
+                min-height: 44px !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
             access_code = st.text_input(
                 "code", type="password",
                 placeholder="Enter access code...",
@@ -770,11 +796,40 @@ with st.spinner("Running fraud detection — rules + ML..."):
 
 st.caption(f"Analysis complete in {elapsed:.1f}s — {metrics.get('mode','ML')} mode")
 
-high_risk_df   = scored[scored["risk_label"]=="High"]
-medium_risk_df = scored[scored["risk_label"]=="Medium"]
-low_risk_df    = scored[scored["risk_label"]=="Low"]
-high_risk_pct  = len(high_risk_df)/len(scored)*100
-amount_at_risk = high_risk_df["amount"].sum()
+# ── MOMENT OF TRUTH — first thing seller sees ─────────────────────────────────
+_high_count  = len(scored[scored["risk_label"]=="High"])
+_total       = len(scored)
+_at_risk_amt = scored[scored["risk_label"]=="High"]["amount"].sum()
+_ts          = pd.to_datetime(scored["timestamp"], errors="coerce")
+_days_span   = max((_ts.max() - _ts.min()).days, 1)
+_daily_leak  = (_at_risk_amt * 0.40) / _days_span
+
+if _high_count > 0:
+    _daily_s = f"Rs.{_daily_leak:,.0f}"
+    _count_s = str(_high_count)
+    st.markdown(
+        '<div style="background:#0d1625;border:1px solid #1a2d4a;border-top:3px solid #ef4444;'
+        'border-radius:12px;padding:28px 32px;margin:16px 0 8px;text-align:center">'
+        '<div style="font-size:10px;font-weight:700;letter-spacing:0.14em;color:#ef4444;'
+        'text-transform:uppercase;margin-bottom:14px">⚠ Analysis Complete</div>'
+        '<div style="font-size:1.4rem;font-weight:700;color:#f1f5f9;margin-bottom:10px;line-height:1.4">'
+        'We found <span style="color:#ef4444">' + _count_s + ' customers</span> who already '
+        'cost you money and are likely to order again.'
+        '</div>'
+        '<div style="background:#07101f;border-radius:8px;padding:14px 20px;'
+        'display:inline-block;margin-bottom:16px">'
+        '<span style="color:#64748b;font-size:13px">Estimated amount leaking </span>'
+        '<span style="color:#f59e0b;font-family:monospace;font-size:1.3rem;font-weight:700">'
+        + _daily_s + '</span>'
+        '<span style="color:#64748b;font-size:13px"> every day</span>'
+        '</div>'
+        '<div style="color:#475569;font-size:12px">'
+        'Scroll down to see exactly who they are and what to do before your next dispatch.'
+        '</div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
 
 # ── TOP ALERT BANNER ─────────────────────────────────────────────────────────
 # Pre-compute all values
@@ -979,6 +1034,220 @@ nothing_html = (
     '</div></div>'
 )
 st.markdown(nothing_html, unsafe_allow_html=True)
+
+# ── DO NOT SHIP LIST ─────────────────────────────────────────────────────────
+st.markdown('<div class="section-title">🚫 Do Not Ship List — Based on Your Past Losses</div>',
+            unsafe_allow_html=True)
+st.markdown(
+    '<p style="color:#64748b;font-size:13px;margin:-12px 0 16px">'
+    'These specific customers already cost you money. '
+    'They match patterns from your past losses. '
+    'Call to verify before dispatching any COD order from these profiles.</p>',
+    unsafe_allow_html=True
+)
+
+# Build the do not ship list from high risk orders
+dns_df = high_risk_df.copy()
+
+# Get top repeat offenders by user_id
+if "user_id" in dns_df.columns:
+    user_counts = dns_df["user_id"].value_counts()
+    repeat_users = user_counts[user_counts >= 2].index.tolist()
+    repeat_df = dns_df[dns_df["user_id"].isin(repeat_users)].copy()
+else:
+    repeat_df = dns_df.head(0)
+
+# Get top high risk regardless
+top_dns = dns_df.nlargest(min(15, len(dns_df)), "fraud_score_pct") if "fraud_score_pct" in dns_df.columns else dns_df.head(15)
+
+if len(top_dns) > 0:
+    for i, (_, row) in enumerate(top_dns.iterrows()):
+        if i >= 10:
+            break
+
+        # Build plain language reason
+        reasons = []
+        uid = str(row.get("user_id", "Unknown"))
+        amt = row.get("amount", 0)
+        loc = str(row.get("location", ""))
+        pay = str(row.get("payment_method", ""))
+        score = row.get("fraud_score_pct", 0)
+
+        ip_count  = int(row.get("ip_user_count", 1))
+        dev_count = int(row.get("device_user_count", 1))
+        is_first  = row.get("is_first_txn", 0)
+        is_land   = row.get("is_landmark_only", False)
+        addr_count = row.get("address_user_count", 1)
+        txn_1h    = int(row.get("txn_count_1h", 0))
+
+        if ip_count >= 3:
+            reasons.append(f"IP shared across {ip_count} different accounts")
+        if dev_count >= 3:
+            reasons.append(f"Same device used by {dev_count} different buyers")
+        if addr_count >= 3:
+            reasons.append(f"This address linked to {int(addr_count)} different accounts")
+        if is_land:
+            reasons.append("Landmark-only address — likely undeliverable")
+        if is_first and amt > 1500 and "cod" in pay.lower():
+            reasons.append("First-ever order, high value, cash on delivery")
+        if txn_1h > 3:
+            reasons.append(f"{txn_1h} orders placed in one hour from this source")
+        if not reasons:
+            reasons.append("Multiple risk signals detected from past order patterns")
+
+        reason_text = " · ".join(reasons[:2])
+        color = "#ef4444" if score >= 70 else "#f59e0b"
+
+        st.markdown(
+            f'<div style="background:#0d1625;border:1px solid #1a2d4a;border-left:3px solid {color};'
+            f'border-radius:8px;padding:14px 18px;margin-bottom:8px;'
+            f'display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">'
+            f'<div style="flex:1;min-width:200px">'
+            f'<div style="font-weight:600;color:#e2e8f0;font-size:14px;margin-bottom:3px">'
+            f'{"🔴" if score >= 70 else "🟠"} {uid}'
+            f'{"  ·  " + loc[:30] if loc and loc != "nan" else ""}'
+            f'</div>'
+            f'<div style="color:#64748b;font-size:12px">{reason_text}</div>'
+            f'</div>'
+            f'<div style="text-align:right;flex-shrink:0">'
+            f'<div style="font-family:monospace;font-weight:700;color:{color};font-size:13px">'
+            f'Rs.{amt:,.0f}</div>'
+            f'<div style="font-size:11px;color:#334155;margin-top:2px">at risk</div>'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+
+    # Download button for Do Not Ship List
+    dns_export_cols = [c for c in ["user_id","location","amount","payment_method","fraud_score_pct","ip_address","device_id"]
+                       if c in top_dns.columns]
+    dns_export = top_dns[dns_export_cols].copy()
+    dns_export.columns = [c.replace("_"," ").title() for c in dns_export.columns]
+    
+    st.download_button(
+        "⬇️ Download Full Do Not Ship List (CSV)",
+        data=dns_export.to_csv(index=False),
+        file_name="shipscan_do_not_ship.csv",
+        mime="text/csv",
+        use_container_width=False
+    )
+    st.caption("Share this with your dispatch team. Check new orders against it before shipping COD.")
+
+else:
+    st.success("✅ No high-risk profiles detected in your data.")
+
+# ── RTO REDUCTION SUGGESTIONS ───────────────────────────────────────────────
+st.markdown('<div class="section-title">💡 Specific Changes To Make This Week</div>',
+            unsafe_allow_html=True)
+st.markdown(
+    '<p style="color:#64748b;font-size:13px;margin:-12px 0 16px">'
+    'Based on your actual data — not generic advice. '
+    'Each suggestion is calculated from patterns in your orders specifically.</p>',
+    unsafe_allow_html=True
+)
+
+rto_suggestions = []
+
+# Suggestion 1: First time high value COD
+if "is_first_txn" in scored.columns and "payment_method" in scored.columns:
+    first_cod_high = high_risk_df[
+        (high_risk_df["is_first_txn"]==1) &
+        (high_risk_df["payment_method"].str.lower().str.contains("cod", na=False))
+    ]
+    if len(first_cod_high) > 0:
+        saving = first_cod_high["amount"].sum() * 0.4
+        rto_suggestions.append({
+            "action": f"Call {len(first_cod_high)} first-time buyers before dispatch",
+            "why": "First-time + high value + COD has the highest fraud rate in your data",
+            "how": "Simple 30-second call — confirm name, address, and that they want the order",
+            "saving": saving,
+            "color": "#ef4444",
+            "urgency": "TODAY"
+        })
+
+# Suggestion 2: Disable COD for flagged user profiles
+if len(high_risk_df) > 0:
+    cod_high_count = len(high_risk_df[
+        high_risk_df.get("payment_method", pd.Series([""])).str.lower().str.contains("cod", na=False)
+    ]) if "payment_method" in high_risk_df.columns else len(high_risk_df)
+    saving2 = high_risk_df["amount"].sum() * 0.35
+    rto_suggestions.append({
+        "action": f"Switch {cod_high_count} flagged COD orders to prepaid-only",
+        "why": "These profiles already caused losses — COD gives them zero risk",
+        "how": "Use the Do Not Ship list above. For these users, set payment to prepaid in your platform",
+        "saving": saving2,
+        "color": "#f59e0b",
+        "urgency": "THIS WEEK"
+    })
+
+# Suggestion 3: High RTO locations specific to seller
+if "location" in scored.columns:
+    loc_rto = scored.groupby("location").apply(
+        lambda x: pd.Series({
+            "total": len(x),
+            "high": (x["risk_label"]=="High").sum(),
+            "amount": x[x["risk_label"]=="High"]["amount"].sum()
+        })
+    ).reset_index()
+    loc_rto["rate"] = loc_rto["high"] / loc_rto["total"].clip(lower=1) * 100
+    bad_locs = loc_rto[(loc_rto["rate"] >= 45) & (loc_rto["total"] >= 3)]
+    if len(bad_locs) > 0:
+        saving3 = bad_locs["amount"].sum() * 0.4
+        rto_suggestions.append({
+            "action": f"Restrict COD in {len(bad_locs)} high-RTO areas from your data",
+            "why": f"These specific areas have 45%+ loss rate in YOUR orders — not industry averages",
+            "how": "Block COD or add OTP verification for orders from these pin codes specifically",
+            "saving": saving3,
+            "color": "#8b5cf6",
+            "urgency": "THIS WEEK"
+        })
+
+# Suggestion 4: Landmark address rule
+if "is_landmark_only" in scored.columns:
+    landmark_orders = high_risk_df[high_risk_df["is_landmark_only"]==True]
+    if len(landmark_orders) > 0:
+        saving4 = landmark_orders["amount"].sum() * 0.6
+        rto_suggestions.append({
+            "action": f"Reject or call {len(landmark_orders)} orders with incomplete addresses",
+            "why": "Addresses like 'near water tank' or 'opp gas agency' cannot be reliably delivered",
+            "how": "Call to get complete address before shipping. Or switch to prepaid only for COD",
+            "saving": saving4,
+            "color": "#f59e0b",
+            "urgency": "BEFORE NEXT DISPATCH"
+        })
+
+# Render suggestions
+if rto_suggestions:
+    for sug in rto_suggestions:
+        saving_str = f"Rs.{sug['saving']:,.0f}"
+        st.markdown(
+            '<div style="background:#0d1625;border:1px solid #1a2d4a;border-left:3px solid '
+            + sug["color"] + ';border-radius:10px;padding:16px 20px;margin-bottom:10px">'
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;'
+            'flex-wrap:wrap;gap:8px;margin-bottom:10px">'
+            '<div style="font-weight:700;color:#e2e8f0;font-size:14px">'
+            + sug["action"] + '</div>'
+            '<span style="background:' + sug["color"] + '22;color:' + sug["color"] + ';'
+            'border:1px solid ' + sug["color"] + '44;border-radius:20px;'
+            'font-size:10px;font-weight:700;padding:2px 10px;white-space:nowrap">'
+            + sug["urgency"] + '</span>'
+            '</div>'
+            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">'
+            '<div><div style="color:#334155;font-size:10px;text-transform:uppercase;'
+            'letter-spacing:0.08em;margin-bottom:3px">Why</div>'
+            '<div style="color:#64748b;font-size:12px">' + sug["why"] + '</div></div>'
+            '<div><div style="color:#334155;font-size:10px;text-transform:uppercase;'
+            'letter-spacing:0.08em;margin-bottom:3px">How</div>'
+            '<div style="color:#64748b;font-size:12px">' + sug["how"] + '</div></div>'
+            '<div><div style="color:#334155;font-size:10px;text-transform:uppercase;'
+            'letter-spacing:0.08em;margin-bottom:3px">Potential saving</div>'
+            '<div style="font-family:monospace;font-weight:700;color:#10b981;font-size:14px">'
+            + saving_str + '</div></div>'
+            '</div></div>',
+            unsafe_allow_html=True
+        )
+else:
+    st.success("✅ No specific high-priority changes identified. Your order patterns look relatively clean.")
 
 # ── MONEY BREAKDOWN — Where losses come from ──────────────────────────────────
 st.markdown('<div class="section-title">💸 Where Your Losses Are Coming From</div>',
@@ -1447,6 +1716,221 @@ with ef3:
         use_container_width=True
     )
     st.caption("Step-by-step guide for Amazon, Shopify, Meesho")
+
+# ── FINGERPRINT PDF — simple one-page seller checklist ───────────────────────
+st.markdown('<div class="section-title">🔍 Your Personal Fraud Fingerprint</div>',
+            unsafe_allow_html=True)
+st.markdown(
+    '<p style="color:#64748b;font-size:13px;margin:-12px 0 16px">'
+    'A simple checklist built from YOUR data. '
+    'Before dispatching any COD order, check it against these patterns. '
+    'Fraudsters change their name — they rarely change everything else.</p>',
+    unsafe_allow_html=True
+)
+
+# Build fingerprint data from scored dataframe
+fp_devices  = []
+fp_ips      = []
+fp_addrs    = []
+fp_pincodes = []
+fp_patterns = []
+
+h = high_risk_df.copy()
+
+# Device fingerprints
+if "device_id" in h.columns:
+    dev_counts = h["device_id"].value_counts()
+    for dev, cnt in dev_counts[dev_counts >= 2].head(5).items():
+        fp_devices.append(f"{dev} — used by {cnt} different accounts in your bad orders")
+
+# IP clusters
+if "ip_address" in h.columns:
+    ip_counts = h["ip_address"].value_counts()
+    for ip, cnt in ip_counts[ip_counts >= 2].head(5).items():
+        fp_ips.append(f"{ip} — linked to {cnt} high-risk orders")
+
+# Address red flags
+if "is_landmark_only" in h.columns:
+    landmark_addrs = h[h["is_landmark_only"]==True]["location"].dropna().unique()[:5]
+    for addr in landmark_addrs:
+        if str(addr) != "nan":
+            fp_addrs.append(str(addr)[:60])
+
+# High risk pincodes
+if "location" in scored.columns:
+    pc_rto = scored.groupby("location").apply(
+        lambda x: (x["risk_label"]=="High").sum() / max(len(x),1) * 100
+    ).sort_values(ascending=False)
+    for pc, rate in pc_rto[pc_rto >= 40].head(8).items():
+        if str(pc) != "nan" and len(str(pc)) > 2:
+            fp_pincodes.append(f"{str(pc)[:40]} — {rate:.0f}% of your orders here are high risk")
+
+# Behavioural patterns
+if "is_first_txn" in scored.columns:
+    first_high = len(h[h["is_first_txn"]==1])
+    if first_high > 0:
+        fp_patterns.append(f"First-time buyer + COD + high value — {first_high} such orders flagged")
+if "is_night" in scored.columns:
+    night_high = len(h[h["is_night"]==1])
+    if night_high > 0:
+        fp_patterns.append(f"Orders placed 11pm–4am — {night_high} flagged from this window")
+if "txn_count_1h" in scored.columns:
+    vel_high = len(h[h["txn_count_1h"]>3])
+    if vel_high > 0:
+        fp_patterns.append(f"Multiple orders in 1 hour — {vel_high} velocity pattern orders")
+
+# Display fingerprint as clean checklist cards
+fp_cols = st.columns(2)
+
+checklist_items = [
+    ("📱 Watch These Devices", fp_devices,
+     "New order from these device IDs — call before dispatch",
+     "#8b5cf6"),
+    ("🌐 Watch These IPs", fp_ips,
+     "New COD order from these IP addresses — verify first",
+     "#3b82f6"),
+    ("📍 Suspicious Addresses", fp_addrs,
+     "Orders with these address patterns — require prepaid or call",
+     "#f59e0b"),
+    ("🗺 Your High-Risk Areas", fp_pincodes,
+     "These locations have high failure rates specifically in YOUR data",
+     "#ef4444"),
+]
+
+for i, (title, items, instruction, color) in enumerate(checklist_items):
+    with fp_cols[i % 2]:
+        items_html = ""
+        if items:
+            for item in items:
+                items_html += (
+                    '<div style="background:#07101f;border-radius:6px;padding:8px 12px;'
+                    'margin-bottom:6px;font-size:12px;color:#94a3b8;font-family:monospace;'
+                    'overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+                    + item[:70] + '</div>'
+                )
+        else:
+            items_html = '<div style="color:#334155;font-size:12px;padding:8px">Not enough data to identify patterns yet</div>'
+
+        st.markdown(
+            '<div style="background:#0d1625;border:1px solid #1a2d4a;border-left:3px solid '
+            + color + ';border-radius:10px;padding:16px;margin-bottom:16px">'
+            '<div style="font-weight:700;color:#e2e8f0;font-size:13px;margin-bottom:4px">'
+            + title + '</div>'
+            '<div style="color:#475569;font-size:11px;margin-bottom:10px">' + instruction + '</div>'
+            + items_html +
+            '</div>',
+            unsafe_allow_html=True
+        )
+
+# Behavioural patterns as a single row
+if fp_patterns:
+    patterns_html = "".join([
+        '<div style="background:#07101f;border-radius:6px;padding:8px 12px;margin-bottom:6px;'
+        'font-size:12px;color:#94a3b8">⚡ ' + p + '</div>'
+        for p in fp_patterns
+    ])
+    st.markdown(
+        '<div style="background:#0d1625;border:1px solid #1a2d4a;border-left:3px solid #10b981;'
+        'border-radius:10px;padding:16px;margin-bottom:16px">'
+        '<div style="font-weight:700;color:#e2e8f0;font-size:13px;margin-bottom:4px">'
+        '🧠 Behavioural Patterns From Your Data</div>'
+        '<div style="color:#475569;font-size:11px;margin-bottom:10px">'
+        'These combinations appeared repeatedly in your past losses</div>'
+        + patterns_html +
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+# Generate PDF fingerprint
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.units import mm
+    import io as _io
+
+    pdf_buf = _io.BytesIO()
+    doc = SimpleDocTemplate(pdf_buf, pagesize=A4,
+                           rightMargin=20*mm, leftMargin=20*mm,
+                           topMargin=20*mm, bottomMargin=20*mm)
+
+    styles = getSampleStyleSheet()
+    story  = []
+
+    # Header
+    story.append(Paragraph("<b>ShipScan — Your Fraud Fingerprint</b>",
+                           ParagraphStyle("H1", fontSize=18, textColor=colors.HexColor("#1e40af"),
+                                          spaceAfter=4)))
+    story.append(Paragraph("Check new COD orders against these patterns before dispatch.",
+                           ParagraphStyle("sub", fontSize=11, textColor=colors.HexColor("#64748b"),
+                                          spaceAfter=8)))
+    story.append(HRFlowable(width="100%", thickness=1,
+                            color=colors.HexColor("#e2e8f0"), spaceAfter=12))
+
+    # Daily leak
+    story.append(Paragraph(
+        f"<b>Estimated daily loss from repeat patterns: Rs.{_daily_leak:,.0f}/day</b>",
+        ParagraphStyle("alert", fontSize=12, textColor=colors.HexColor("#dc2626"), spaceAfter=12)
+    ))
+
+    sections = [
+        ("Watch These Devices", fp_devices,
+         "Any new order from these device IDs — call customer before dispatching COD."),
+        ("Watch These IPs", fp_ips,
+         "New COD order from these IPs — verify before shipping."),
+        ("Suspicious Address Patterns", fp_addrs,
+         "Orders with these address patterns — require prepaid or call to confirm."),
+        ("Your High-Risk Areas", fp_pincodes,
+         "These areas have high failure rates in YOUR specific order history."),
+        ("Behavioural Patterns", fp_patterns,
+         "These order combinations appeared repeatedly in your past losses."),
+    ]
+
+    for sec_title, sec_items, sec_note in sections:
+        story.append(Paragraph(f"<b>{sec_title}</b>",
+                               ParagraphStyle("H2", fontSize=13,
+                                              textColor=colors.HexColor("#1e293b"), spaceAfter=3)))
+        story.append(Paragraph(sec_note,
+                               ParagraphStyle("note", fontSize=9,
+                                              textColor=colors.HexColor("#64748b"), spaceAfter=6)))
+        if sec_items:
+            for item in sec_items:
+                story.append(Paragraph(f"• {item}",
+                                       ParagraphStyle("item", fontSize=10,
+                                                      textColor=colors.HexColor("#334155"),
+                                                      leftIndent=12, spaceAfter=3)))
+        else:
+            story.append(Paragraph("Not enough data yet — add more order history.",
+                                   ParagraphStyle("empty", fontSize=10,
+                                                  textColor=colors.HexColor("#94a3b8"),
+                                                  leftIndent=12, spaceAfter=3)))
+        story.append(Spacer(1, 8))
+        story.append(HRFlowable(width="100%", thickness=0.5,
+                                color=colors.HexColor("#e2e8f0"), spaceAfter=8))
+
+    # Footer
+    story.append(Spacer(1, 12))
+    story.append(Paragraph(
+        "Generated by ShipScan  |  shipscan.in  |  contact@shipscan.in  |  "
+        "Run this analysis weekly to keep the fingerprint current.",
+        ParagraphStyle("footer", fontSize=8, textColor=colors.HexColor("#94a3b8"))
+    ))
+
+    doc.build(story)
+    pdf_bytes = pdf_buf.getvalue()
+
+    st.download_button(
+        "⬇️ Download Fraud Fingerprint (PDF)",
+        data=pdf_bytes,
+        file_name="shipscan_fraud_fingerprint.pdf",
+        mime="application/pdf",
+        use_container_width=False
+    )
+    st.caption("Print this and keep it with your dispatch team. Check every COD order against it.")
+
+except ImportError:
+    st.info("Install reportlab to enable PDF fingerprint download: pip install reportlab")
 
 # ── NEXT ORDER PROTECTION + WEEKLY LOOP ──────────────────────────────────────
 st.markdown(
