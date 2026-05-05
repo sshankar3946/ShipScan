@@ -927,7 +927,7 @@ def _fmt_inr(amount):
     elif amount >= 1_00_000:
         return f"Rs.{amount/1_00_000:.2f} L"
     else:
-        return f"Rs.{amount:,.0f}"
+        return f"{_fmt_inr(amount)}"
 
 def _make_html_report(df, scored_df, metrics):
     """Build a rich HTML report matching the ShipScan design — printable as PDF."""
@@ -946,7 +946,7 @@ def _make_html_report(df, scored_df, metrics):
     def L(v):
         if v >= 1_00_00_000: return f"Rs.{v/1_00_00_000:.2f} Cr"
         elif v >= 1_00_000:  return f"Rs.{v/1_00_000:.2f} L"
-        else:                return f"Rs.{v:,.0f}"
+        else:                return f"{_fmt_inr(v)}"
 
     # ── Why-flagged reasons ───────────────────────────────────────────────────
     def reasons_for(row):
@@ -1223,7 +1223,7 @@ with tab1:
     with h1:
         st.markdown(
             f'<div class="ss-stat">'
-            f'<div class="ss-stat-val" style="color:{colour}">{len(high_risk_df)}</div>'
+            f'<div class="ss-stat-val" style="color:{colour};font-size:clamp(1rem,2.5vw,2.2rem)">{len(high_risk_df)}</div>'
             f'<div class="ss-stat-label">High-risk orders</div>'
             f'<div style="color:{colour};font-size:0.87rem;margin-top:6px">'
             f'{high_risk_pct:.1f}% of all orders</div></div>',
@@ -1232,7 +1232,7 @@ with tab1:
     with h2:
         st.markdown(
             f'<div class="ss-stat">'
-            f'<div class="ss-stat-val" style="color:#f59e0b">{_fmt_inr(est_actual_loss)}</div>'
+            f'<div class="ss-stat-val" style="color:#f59e0b;font-size:clamp(1rem,2.5vw,2.2rem)">{_fmt_inr(est_actual_loss)}</div>'
             f'<div class="ss-stat-label">Estimated money already lost</div>'
             f'<div style="color:#64748b;font-size:0.87rem;margin-top:6px">'
             f'40% of {_fmt_inr(amount_at_risk)} at risk</div></div>',
@@ -1241,7 +1241,7 @@ with tab1:
     with h3:
         st.markdown(
             f'<div class="ss-stat">'
-            f'<div class="ss-stat-val" style="color:#10b981">{_fmt_inr(savings_low)} – {_fmt_inr(savings_high)}</div>'
+            f'<div class="ss-stat-val" style="color:#10b981;font-size:clamp(1rem,2.2vw,2rem)">{_fmt_inr(savings_low)} – {_fmt_inr(savings_high)}</div>'
             f'<div class="ss-stat-label">Recoverable going forward</div>'
             f'<div style="color:#64748b;font-size:0.87rem;margin-top:6px">'
             f'If you stop shipping to repeat offenders</div></div>',
@@ -1263,7 +1263,7 @@ with tab1:
             f'These are not random — they share the same addresses, devices, or ordering habits.'
             f'<br><br>'
             f'These customers have <strong style="color:#fca5a5">already cost you '
-            f'Rs.{est_actual_loss:,.0f}</strong>. '
+            f'{_fmt_inr(est_actual_loss)}</strong>. '
             f'If you keep shipping to them, they will order again. '
             f'The list below shows exactly who they are.'
             f'</div></div>',
@@ -1436,18 +1436,102 @@ with tab1:
     dl_c1, dl_c2, dl_c3 = st.columns(3)
 
     with dl_c1:
-        dns_export_cols_s = [c for c in ["user_id","location","amount","payment_method","fraud_score_pct"]
-                             if c in high_risk_df.columns]
-        dns_dl = high_risk_df[dns_export_cols_s].copy()
-        dns_dl.columns = [c.replace("_"," ").title() for c in dns_dl.columns]
-        st.download_button(
-            "⬇️  Do Not Ship List (CSV)",
-            data=dns_dl.to_csv(index=False),
-            file_name="shipscan_do_not_ship.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
-        st.caption("Share with dispatch team")
+        if REPORTLAB_OK:
+            _buf_f = BytesIO()
+            _doc_f = SimpleDocTemplate(_buf_f, pagesize=A4,
+                                       rightMargin=20*mm, leftMargin=20*mm,
+                                       topMargin=20*mm, bottomMargin=20*mm)
+            _styles_f = getSampleStyleSheet()
+            _h1f = ParagraphStyle("h1f", parent=_styles_f["Heading1"],
+                                  textColor=rl_colors.HexColor("#1e293b"), fontSize=18, spaceAfter=4)
+            _h2f = ParagraphStyle("h2f", parent=_styles_f["Heading2"],
+                                  textColor=rl_colors.HexColor("#3b82f6"), fontSize=12, spaceAfter=6)
+            _bodyf = ParagraphStyle("bodyf", parent=_styles_f["Normal"],
+                                    textColor=rl_colors.HexColor("#475569"), fontSize=9, leading=14)
+            _storyf = [
+                Paragraph("ShipScan Fraud Fingerprint", _h1f),
+                Paragraph(f"Generated from {len(scored):,} orders", _bodyf),
+                Spacer(1, 8*mm),
+                Paragraph("Highest-Risk Customers", _h2f),
+            ]
+            _top_u = scored[scored["risk_label"]=="High"]["user_id"].value_counts().head(10)
+            for _u, _c in _top_u.items():
+                _storyf.append(Paragraph(f"• {_u} — {_c} high-risk orders", _bodyf))
+            _storyf.append(Spacer(1, 6*mm))
+            _storyf.append(Paragraph("Suspicious IP Addresses", _h2f))
+            _sus = scored[scored["ip_user_count"]>=3]["ip_address"].value_counts().head(10) if "ip_user_count" in scored.columns else pd.Series()
+            for _ip, _c in _sus.items():
+                _storyf.append(Paragraph(f"• {_ip} — shared by {_c} accounts", _bodyf))
+            if not len(_sus):
+                _storyf.append(Paragraph("No suspicious IPs detected", _bodyf))
+            _storyf.append(Spacer(1, 6*mm))
+            _storyf.append(Paragraph("Behavioural Patterns", _h2f))
+            for _p in [
+                f"Velocity attacks: {n_velocity_att} orders in burst patterns",
+                f"New high-value COD: {n_new_high_val} first-time buyers",
+                f"Fraud rings: {n_fraud_ring} orders sharing addresses across 3+ accounts",
+            ]:
+                _storyf.append(Paragraph(f"• {_p}", _bodyf))
+            _doc_f.build(_storyf)
+            _buf_f.seek(0)
+            st.markdown(
+                '<div style="background:#1a0f2d;border:1px solid #3d2a6a;border-radius:10px;'
+                'padding:14px 18px;margin-bottom:10px">'
+                '<div style="color:#8b5cf6;font-size:0.85rem;font-weight:700;margin-bottom:5px">'
+                'Fraud Fingerprint PDF</div>'
+                '<div style="color:#94a3b8;font-size:0.78rem;line-height:1.6">'
+                'Suspicious IPs, high-risk customer IDs, landmark addresses and behavioural patterns — '
+                'a weekly checklist for your dispatch team.</div></div>',
+                unsafe_allow_html=True
+            )
+            st.download_button(
+                "⬇️  Fraud Fingerprint (PDF)",
+                data=_buf_f,
+                file_name="shipscan_fingerprint.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
+        else:
+            # Fallback: plain text fingerprint
+            top_u2 = scored[scored["risk_label"]=="High"]["user_id"].value_counts().head(10)
+            sus2   = scored[scored["ip_user_count"]>=3]["ip_address"].value_counts().head(10) if "ip_user_count" in scored.columns else pd.Series()
+            txt_lines = [
+                "SHIPSCAN FRAUD FINGERPRINT",
+                "=" * 40,
+                f"Generated from {len(scored):,} orders",
+                "",
+                "HIGHEST-RISK CUSTOMERS",
+                "-" * 30,
+            ]
+            for u, c in top_u2.items():
+                txt_lines.append(f"  {u} — {c} high-risk orders")
+            txt_lines += ["", "SUSPICIOUS IP ADDRESSES", "-" * 30]
+            for ip, c in sus2.items():
+                txt_lines.append(f"  {ip} — shared by {c} accounts")
+            if not len(sus2):
+                txt_lines.append("  No suspicious IPs detected")
+            txt_lines += ["", "BEHAVIOURAL PATTERNS", "-" * 30,
+                f"  Velocity attacks: {n_velocity_att} orders in burst patterns",
+                f"  New high-value COD: {n_new_high_val} first-time buyers",
+                f"  Fraud rings: {n_fraud_ring} orders across 3+ accounts",
+                "", "shipscan.in | contact@shipscan.in"]
+            st.markdown(
+                '<div style="background:#1a0f2d;border:1px solid #3d2a6a;border-radius:10px;'
+                'padding:14px 18px;margin-bottom:10px">'
+                '<div style="color:#8b5cf6;font-size:0.85rem;font-weight:700;margin-bottom:5px">'
+                'Fraud Fingerprint</div>'
+                '<div style="color:#94a3b8;font-size:0.78rem;line-height:1.6">'
+                'Suspicious IPs, high-risk customer IDs and behavioural patterns — '
+                'a weekly checklist for your dispatch team.</div></div>',
+                unsafe_allow_html=True
+            )
+            st.download_button(
+                "⬇️  Fraud Fingerprint (TXT)",
+                data="\n".join(txt_lines),
+                file_name="shipscan_fingerprint.txt",
+                mime="text/plain",
+                use_container_width=True,
+            )
 
     with dl_c2:
         export_cols_s = [c for c in ["transaction_id","user_id","amount","fraud_score_pct","risk_label","payment_method","location"]
@@ -1865,7 +1949,8 @@ with tab3:
         )
 
         if not REPORTLAB_OK:
-            st.error("PDF generation requires reportlab. Check requirements.txt.")
+            # reportlab not available — show plain text fallback
+            st.info("Fingerprint available as TXT. See Summary tab for download.")
         elif True:  # generate on load
 
             buf = BytesIO()
