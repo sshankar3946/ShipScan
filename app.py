@@ -1190,8 +1190,9 @@ st.markdown("""
 .ss-stat {
     background: #0d1625; border-radius: 12px; padding: 20px 24px;
     border: 1px solid #1a2d4a;
-    min-height: 120px;
-    display: flex; flex-direction: column; justify-content: center;
+    height: 130px;
+    display: flex; flex-direction: column; justify-content: flex-start;
+    overflow: hidden;
 }
 .ss-stat-val {
     font-size: 2rem; font-weight: 800;
@@ -1247,7 +1248,7 @@ with tab1:
     with h3:
         st.markdown(
             f'<div class="ss-stat">'
-            f'<div style="color:#10b981;font-size:1.35rem;font-weight:800;font-family:monospace;line-height:1.2;margin-bottom:2px">{_fmt_inr(savings_low)} – {_fmt_inr(savings_high)}</div>'
+            f'<div class="ss-stat-val" style="color:#10b981;font-size:1.7rem">{_fmt_inr(savings_low)} – {_fmt_inr(savings_high)}</div>'
             f'<div class="ss-stat-label">Recoverable going forward</div>'
             f'<div style="color:#64748b;font-size:0.87rem;margin-top:6px">'
             f'If you stop shipping to repeat offenders</div></div>',
@@ -1569,7 +1570,7 @@ with tab1:
             'Risk Report (PDF)</div>'
             '<div style="color:#94a3b8;font-size:0.8rem;line-height:1.6">'
             'Full analysis report with plain-language summary, actions, '
-            'flagged customers and transactions. Open in Chrome and print to PDF.</div></div>',
+            'flagged customers and transactions.</div></div>',
             unsafe_allow_html=True
         )
         st.download_button(
