@@ -927,9 +927,9 @@ def _fmt_inr(amount):
     except (TypeError, ValueError):
         return "Rs.0"
     if amount >= 1_00_00_000:
-        return f"Rs.{amount/1_00_00_000:.2f} Cr"
+        return f"Rs.{amount/1_00_00_000:.2f}Cr"
     elif amount >= 1_00_000:
-        return f"Rs.{amount/1_00_000:.2f} L"
+        return f"Rs.{amount/1_00_000:.2f}L"
     else:
         return f"Rs.{amount:,.0f}"
 
@@ -1248,7 +1248,7 @@ with tab1:
     with h3:
         st.markdown(
             f'<div class="ss-stat">'
-            f'<div class="ss-stat-val" style="color:#10b981;font-size:1.7rem">{_fmt_inr(savings_low)} – {_fmt_inr(savings_high)}</div>'
+            f'<div class="ss-stat-val" style="color:#10b981;font-size:1.35rem">{_fmt_inr(savings_low)} – {_fmt_inr(savings_high)}</div>'
             f'<div class="ss-stat-label">Recoverable going forward</div>'
             f'<div style="color:#64748b;font-size:0.87rem;margin-top:6px">'
             f'If you stop shipping to repeat offenders</div></div>',
