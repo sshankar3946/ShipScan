@@ -920,72 +920,246 @@ n_new_high_val = int(scored[(scored["is_first_txn"] == 1) & (scored["amount"] > 
 cod_high       = scored[(scored["risk_label"] == "High") & (scored["payment_method"].str.lower().str.contains("cod", na=False))] if "payment_method" in scored.columns else pd.DataFrame()
 
 # ── HELPER: generate HTML report (defined here to avoid triple-quote nesting) ─
+def _fmt_inr(amount):
+    """Format a rupee amount in Indian units (L / Cr)."""
+    if amount >= 1_00_00_000:
+        return f"Rs.{amount/1_00_00_000:.2f} Cr"
+    elif amount >= 1_00_000:
+        return f"Rs.{amount/1_00_000:.2f} L"
+    else:
+        return f"Rs.{amount:,.0f}"
+
 def _make_html_report(df, scored_df, metrics):
-    has_labels = "precision" in metrics
-    precision  = metrics.get("precision", 0)
-    recall     = metrics.get("recall", 0)
-    f1         = metrics.get("f1", 0)
+    """Build a rich HTML report matching the ShipScan design — printable as PDF."""
     high_df    = scored_df[scored_df["risk_label"] == "High"]
-    risk_pct   = len(high_df) / max(len(scored_df), 1) * 100
+    med_df     = scored_df[scored_df["risk_label"] == "Medium"]
+    total      = len(scored_df)
+    n_high     = len(high_df)
+    n_med      = len(med_df)
+    high_pct   = n_high / max(total, 1) * 100
     at_risk    = high_df["amount"].sum()
     loss_est   = at_risk * 0.4
+    savings_lo = loss_est * 0.5
+    savings_hi = loss_est * 0.8
 
-    rows = ""
-    display_cols = ["transaction_id", "user_id", "amount", "fraud_score_pct", "risk_label"]
-    display_cols = [c for c in display_cols if c in df.columns]
-    for _, r in df.head(50).iterrows():
-        clr = "#dc2626" if str(r.get("risk_label","")) == "High" else "#d97706"
-        rows += "<tr>"
-        for c in display_cols:
-            val = r.get(c, "")
-            if c == "amount":
-                val = f"Rs.{val:,.0f}" if val else ""
-            elif c == "fraud_score_pct":
-                val = f"{val:.1f}%" if val else ""
-            rows += f"<td>{val}</td>"
-        rows += "</tr>"
+    # ── Lakh formatter ────────────────────────────────────────────────────────
+    def L(v):
+        if v >= 1_00_00_000: return f"Rs.{v/1_00_00_000:.2f} Cr"
+        elif v >= 1_00_000:  return f"Rs.{v/1_00_000:.2f} L"
+        else:                return f"Rs.{v:,.0f}"
 
-    html_parts = [
-        "<!DOCTYPE html><html><head>",
-        '<meta charset="UTF-8">',
-        "<title>ShipScan Risk Report</title>",
-        "<style>",
-        "body{font-family:Arial,sans-serif;background:#fff;color:#1e293b;padding:32px;margin:0}",
-        ".header{background:linear-gradient(135deg,#0f1e35,#1a3a6b);color:white;padding:28px;border-radius:12px;margin-bottom:24px}",
-        ".header h1{font-size:1.65rem;font-weight:700;margin:0 0 4px}",
-        ".header p{color:#94a3b8;font-size:0.9rem;margin:0}",
-        ".grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}",
-        ".card{border-radius:10px;padding:18px;border:1px solid #e2e8f0}",
-        ".card .label{font-size:0.77rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:6px}",
-        ".card .value{font-size:1.55rem;font-weight:700;font-family:monospace}",
-        ".red{border-left:4px solid #dc2626}.red .value{color:#dc2626}",
-        ".amber{border-left:4px solid #d97706}.amber .value{color:#d97706}",
-        ".green{border-left:4px solid #059669}.green .value{color:#059669}",
-        "h2{font-size:1.05rem;font-weight:700;margin:24px 0 12px;padding-bottom:8px;border-bottom:2px solid #e2e8f0}",
-        "table{width:100%;border-collapse:collapse;font-size:0.87rem;margin-bottom:24px}",
-        "th{background:#f8fafc;padding:10px 12px;text-align:left;font-size:0.77rem;text-transform:uppercase;color:#64748b}",
-        "td{padding:10px 12px;border-bottom:1px solid #f1f5f9}",
-        "tr:hover{background:#f8fafc}",
-        ".footer{color:#64748b;font-size:0.83rem;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:12px}",
-        "</style></head><body>",
-        "<div class='header'>",
-        "<h1>ShipScan Risk Report</h1>",
-        f"<p>Generated from {len(scored_df):,} orders &nbsp;|&nbsp; {len(high_df)} high-risk flagged</p>",
-        "</div>",
-        "<div class='grid'>",
-        f"<div class='card red'><div class='label'>High-risk orders</div><div class='value'>{len(high_df)}</div></div>",
-        f"<div class='card amber'><div class='label'>Amount at risk</div><div class='value'>Rs.{at_risk:,.0f}</div></div>",
-        f"<div class='card green'><div class='label'>Est. loss</div><div class='value'>Rs.{loss_est:,.0f}</div></div>",
-        "</div>",
-        "<h2>Top Flagged Orders</h2>",
-        "<table><tr>",
+    # ── Why-flagged reasons ───────────────────────────────────────────────────
+    def reasons_for(row):
+        r = []
+        amt  = row.get("amount", 0)
+        thr  = scored_df["amount"].quantile(0.85)
+        if amt > thr:
+            r.append(f"Amount {L(amt)} exceeds safe threshold of {L(thr)}")
+        if row.get("is_first_txn", 0) == 1 and amt > 1500:
+            r.append(f"First-ever transaction is unusually large ({L(amt)})")
+        ip_c = row.get("ip_user_count", 1)
+        if ip_c >= 3:
+            r.append(f"IP address used by {int(ip_c)} different users")
+        try:
+            hr = int(str(row.get("timestamp","")).split(" ")[-1].split(":")[0])
+            if hr < 6 or hr >= 23:
+                r.append(f"Transaction at {hr}:00 (night-time window)")
+        except: pass
+        if row.get("is_landmark_only", False):
+            r.append("Suspicious address pattern (landmark/vague)")
+        addr_c = row.get("address_user_count", 1)
+        if addr_c >= 3:
+            r.append(f"Delivery address shared by {int(addr_c)} different customers — possible fraud ring")
+        dev_c = row.get("device_user_count", 1)
+        if dev_c >= 3:
+            r.append(f"Same device used by {int(dev_c)} different buyers")
+        v1h = row.get("txn_count_1h", 0)
+        if v1h > 3:
+            r.append(f"{int(v1h)} orders placed in one hour from this account")
+        if not r:
+            r.append("Multiple risk signals detected")
+        return r
+
+    # ── Transaction rows ──────────────────────────────────────────────────────
+    txn_rows = ""
+    display = high_df.sort_values("fraud_score_pct", ascending=False).head(50)
+    for _, row in display.iterrows():
+        reasons = reasons_for(row)
+        bullets = "".join(f"• {x}<br>" for x in reasons)
+        score   = row.get("fraud_score_pct", 0)
+        clr     = "#dc2626" if score >= 60 else "#d97706"
+        txn_rows += (
+            f"<tr>"
+            f"<td>{row.get('transaction_id','—')}</td>"
+            f"<td>{row.get('user_id','—')}</td>"
+            f"<td>{L(row.get('amount',0))}</td>"
+            f"<td style='color:{clr};font-weight:700'>{score:.0f}%</td>"
+            f"<td style='color:{clr};font-weight:700'>{row.get('risk_label','—')}</td>"
+            f"<td style='font-size:0.78rem;color:#64748b'>{bullets}</td>"
+            f"</tr>"
+        )
+
+    # ── Top risk users ────────────────────────────────────────────────────────
+    top_users = high_df.groupby("user_id")["amount"].sum().sort_values(ascending=False).head(5)
+    user_rows = ""
+    for uid, amt in top_users.items():
+        cnt = len(high_df[high_df["user_id"]==uid])
+        user_rows += f"<tr><td>{uid}</td><td>{cnt}</td><td>{L(amt)}</td></tr>"
+
+    # ── Top risky pincodes ────────────────────────────────────────────────────
+    pin_section = ""
+    if "pincode" in high_df.columns:
+        top_pins = high_df["pincode"].value_counts().head(5)
+        pin_rows = "".join(f"<tr><td>{p}</td><td>{c} flagged orders</td></tr>" for p,c in top_pins.items())
+        pin_section = f"""
+        <h2>High-Risk Pin Codes</h2>
+        <table>
+          <thead><tr><th>Pin Code</th><th>Flagged Orders</th></tr></thead>
+          <tbody>{pin_rows}</tbody>
+        </table>"""
+
+    # ── Suspicious IPs ────────────────────────────────────────────────────────
+    ip_section = ""
+    if "ip_address" in scored_df.columns and "ip_user_count" in scored_df.columns:
+        sus_ips = scored_df[scored_df["ip_user_count"]>=3]["ip_address"].value_counts().head(5)
+        if len(sus_ips):
+            ip_rows = "".join(f"<tr><td>{ip}</td><td>Shared by {c} accounts</td></tr>" for ip,c in sus_ips.items())
+            ip_section = f"""
+        <h2>Suspicious IP Addresses</h2>
+        <table>
+          <thead><tr><th>IP Address</th><th>Risk Signal</th></tr></thead>
+          <tbody>{ip_rows}</tbody>
+        </table>"""
+
+    # ── Action items ──────────────────────────────────────────────────────────
+    n_cod   = len(high_df[high_df["payment_method"].str.lower().str.contains("cod",na=False)]) if "payment_method" in high_df.columns else 0
+    n_new   = len(high_df[(high_df.get("is_first_txn",pd.Series([0]*len(high_df)))==1)]) if "is_first_txn" in high_df.columns else 0
+    n_land  = len(high_df[high_df.get("is_landmark_only",pd.Series([False]*len(high_df)))==True]) if "is_landmark_only" in high_df.columns else 0
+
+    actions_html = ""
+    action_list = []
+    if n_cod:   action_list.append(f"Disable COD for {n_cod} high-risk orders before next dispatch")
+    if n_new:   action_list.append(f"Call and verify {n_new} first-time buyers before shipping")
+    if n_land:  action_list.append(f"Flag {n_land} orders with landmark-only addresses for manual review")
+    action_list.append("Download the Do Not Ship list and share with your dispatch team")
+    action_list.append("Re-run ShipScan next month with updated order data")
+
+    for i, a in enumerate(action_list, 1):
+        actions_html += (
+            f'<div class="action-item">'
+            f'<div class="action-num">{i}</div>'
+            f'<div style="font-size:0.85rem;color:#1e293b;line-height:1.5">{a}</div>'
+            f'</div>'
+        )
+
+    # ── Policy improvements ───────────────────────────────────────────────────
+    improv = [
+        ("OTP for large COD orders", f"Require OTP verification for COD orders above {L(scored_df['amount'].quantile(0.85))}"),
+        ("Call-before-dispatch policy", "For new buyers placing their first COD order above Rs.2,000"),
+        ("Block landmark addresses", "Disable COD for addresses with vague landmarks only"),
+        ("Prepaid incentive", "Offer 2-5% discount for prepaid orders to reduce COD exposure"),
     ]
-    for c in display_cols:
-        html_parts.append(f"<th>{c.replace('_',' ').title()}</th>")
-    html_parts.append("</tr>" + rows + "</table>")
-    html_parts.append("<div class='footer'>Generated by ShipScan &nbsp;|&nbsp; shipscan.in &nbsp;|&nbsp; Open in Chrome and press Ctrl+P to save as PDF</div>")
-    html_parts.append("</body></html>")
-    return "".join(html_parts)
+    imp_html = "".join(
+        f'<div class="imp-item"><strong>{t}</strong><br><span style="color:#64748b;font-size:0.78rem">{d}</span></div>'
+        for t,d in improv
+    )
+
+    # ── Final HTML ────────────────────────────────────────────────────────────
+    parts = [
+        '<!DOCTYPE html><html><head>',
+        '<meta charset="UTF-8">',
+        '<title>ShipScan Fraud Report</title>',
+        '<style>',
+        "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');",
+        '* { margin:0; padding:0; box-sizing:border-box; }',
+        "body { font-family:'Inter',sans-serif; background:#fff; color:#1e293b; padding:40px; }",
+        '.header { background:linear-gradient(135deg,#0f1e35,#1a3a6b); color:white; padding:32px; border-radius:12px; margin-bottom:28px; }',
+        '.header h1 { font-size:1.8rem; font-weight:700; margin-bottom:4px; }',
+        '.header p { color:#94a3b8; font-size:0.9rem; }',
+        '.grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }',
+        '.card { border-radius:10px; padding:18px; border:1px solid #e2e8f0; }',
+        '.card .label { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:#64748b; margin-bottom:6px; }',
+        '.card .value { font-size:1.5rem; font-weight:700; font-family:monospace; }',
+        '.red { border-left:4px solid #dc2626; } .red .value { color:#dc2626; }',
+        '.amber { border-left:4px solid #d97706; } .amber .value { color:#d97706; }',
+        '.green { border-left:4px solid #059669; } .green .value { color:#059669; }',
+        '.blue { border-left:4px solid #3b82f6; } .blue .value { color:#3b82f6; }',
+        'h2 { font-size:1rem; font-weight:700; color:#1e293b; margin:28px 0 12px; padding-bottom:8px; border-bottom:2px solid #e2e8f0; }',
+        '.summary-box { background:#f8fafc; border-radius:10px; padding:20px 24px; margin-bottom:28px; border-left:4px solid #3b82f6; }',
+        '.summary-box p { font-size:0.88rem; line-height:1.8; color:#334155; }',
+        'table { width:100%; border-collapse:collapse; font-size:0.82rem; margin-bottom:28px; }',
+        'th { background:#f8fafc; padding:10px 12px; text-align:left; font-size:0.72rem; text-transform:uppercase; color:#64748b; letter-spacing:0.05em; border-bottom:1px solid #e2e8f0; }',
+        'td { padding:10px 12px; border-bottom:1px solid #f1f5f9; vertical-align:top; }',
+        'tr:hover { background:#f8fafc; }',
+        '.actions { background:#f8fafc; border-radius:10px; padding:20px; margin-bottom:28px; }',
+        '.action-item { display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; }',
+        '.action-num { background:#3b82f6; color:white; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:0.72rem; font-weight:700; flex-shrink:0; margin-top:1px; }',
+        '.improvements { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:28px; }',
+        '.imp-item { background:white; border:1px solid #e2e8f0; border-radius:8px; padding:12px; font-size:0.82rem; }',
+        '.footer { text-align:center; color:#94a3b8; font-size:0.75rem; margin-top:28px; padding-top:16px; border-top:1px solid #e2e8f0; }',
+        '@media print { body { padding:20px; } }',
+        '</style></head><body>',
+
+        # Header
+        '<div class="header">',
+        '<h1>ShipScan — Fraud Analysis Report</h1>',
+        '<p>Generated by ShipScan &nbsp;|&nbsp; shipscan.in &nbsp;|&nbsp; contact@shipscan.in</p>',
+        '</div>',
+
+        # Key metrics
+        '<div class="grid">',
+        f'<div class="card blue"><div class="label">Total Orders</div><div class="value">{total:,}</div></div>',
+        f'<div class="card red"><div class="label">High Risk</div><div class="value">{n_high}</div><div style="font-size:0.75rem;color:#64748b;margin-top:4px">{high_pct:.1f}% of total</div></div>',
+        f'<div class="card amber"><div class="label">Medium Risk</div><div class="value">{n_med}</div></div>',
+        f'<div class="card green"><div class="label">Amount at Risk</div><div class="value" style="font-size:1.1rem">{L(at_risk)}</div><div style="font-size:0.75rem;color:#64748b;margin-top:4px">from high-risk orders</div></div>',
+        '</div>',
+
+        # Plain-language summary
+        '<h2>What ShipScan Found</h2>',
+        '<div class="summary-box">',
+        f'<p>Out of <strong>{total:,} orders</strong> analysed, ShipScan flagged '
+        f'<strong style="color:#dc2626">{n_high} orders ({high_pct:.1f}%)</strong> as high-risk. '
+        f'These orders share patterns — same devices, shared addresses, night-time placements, '
+        f'first-time buyers placing unusually large COD orders — that historically lead to returns, '
+        f'RTOs, or fake delivery claims.<br><br>'
+        f'The total amount at risk across these orders is <strong style="color:#dc2626">{L(at_risk)}</strong>. '
+        f'Assuming 40% of at-risk orders result in actual loss, the estimated loss is '
+        f'<strong style="color:#dc2626">{L(loss_est)}</strong>. '
+        f'If you act on the recommendations in this report, you could recover between '
+        f'<strong style="color:#059669">{L(savings_lo)}</strong> and '
+        f'<strong style="color:#059669">{L(savings_hi)}</strong> going forward.</p>',
+        '</div>',
+
+        # Actions to take now
+        '<h2>What to Do Right Now</h2>',
+        '<div class="actions">', actions_html, '</div>',
+
+        # Policy improvements
+        '<h2>Policy Changes to Reduce Future Loss</h2>',
+        '<div class="improvements">', imp_html, '</div>',
+
+        # Top risky users
+        '<h2>Top High-Risk Customers</h2>',
+        '<table><thead><tr><th>Customer ID</th><th>High-Risk Orders</th><th>Total at Risk</th></tr></thead>',
+        f'<tbody>{user_rows}</tbody></table>',
+
+        # IP section
+        ip_section,
+
+        # Pin code section
+        pin_section,
+
+        # Transactions (last)
+        '<h2>Top Flagged Transactions</h2>',
+        '<table><thead><tr>',
+        '<th>Transaction ID</th><th>User</th><th>Amount</th>',
+        '<th>Fraud Score</th><th>Risk</th><th>Why Flagged</th>',
+        f'</tr></thead><tbody>{txn_rows}</tbody></table>',
+
+        '<div class="footer">Generated by ShipScan &nbsp;|&nbsp; shipscan.in &nbsp;|&nbsp; Open in Chrome and press Ctrl+P &rarr; Save as PDF</div>',
+        '</body></html>',
+    ]
+    return "".join(parts)
 
 
 # ── TAB STYLING (injected inline) ─────────────────────────────────────────────
@@ -1058,16 +1232,16 @@ with tab1:
     with h2:
         st.markdown(
             f'<div class="ss-stat">'
-            f'<div class="ss-stat-val" style="color:#f59e0b">Rs.{est_actual_loss:,.0f}</div>'
+            f'<div class="ss-stat-val" style="color:#f59e0b">{_fmt_inr(est_actual_loss)}</div>'
             f'<div class="ss-stat-label">Estimated money already lost</div>'
             f'<div style="color:#64748b;font-size:0.87rem;margin-top:6px">'
-            f'40% of Rs.{amount_at_risk:,.0f} at risk</div></div>',
+            f'40% of {_fmt_inr(amount_at_risk)} at risk</div></div>',
             unsafe_allow_html=True
         )
     with h3:
         st.markdown(
             f'<div class="ss-stat">'
-            f'<div class="ss-stat-val" style="color:#10b981">Rs.{savings_low:,.0f} - Rs.{savings_high:,.0f}</div>'
+            f'<div class="ss-stat-val" style="color:#10b981">{_fmt_inr(savings_low)} – {_fmt_inr(savings_high)}</div>'
             f'<div class="ss-stat-label">Recoverable going forward</div>'
             f'<div style="color:#64748b;font-size:0.87rem;margin-top:6px">'
             f'If you stop shipping to repeat offenders</div></div>',
@@ -1162,7 +1336,7 @@ with tab1:
                 f'<div style="color:#64748b;font-size:14px">{reason_text}</div></div>'
                 f'<div style="text-align:right;flex-shrink:0">'
                 f'<div style="font-family:monospace;font-weight:700;color:{clr};font-size:15px">'
-                f'Rs.{amt:,.0f}</div>'
+                f'{_fmt_inr(amt)}</div>'
                 f'<div style="font-size:13px;color:#475569;margin-top:2px">at risk</div>'
                 f'</div></div>',
                 unsafe_allow_html=True
@@ -1343,6 +1517,18 @@ with tab1:
             file_name="shipscan_fingerprint.pdf",
             mime="application/pdf",
             use_container_width=False,
+        )
+        st.markdown(
+            '<div style="background:#0d1625;border:1px solid #1a2d4a;border-radius:10px;'
+            'padding:14px 18px;margin-bottom:10px">'  
+            '<div style="color:#8b5cf6;font-size:0.82rem;font-weight:700;margin-bottom:6px">'
+            'Fraud Fingerprint PDF</div>'
+            '<div style="color:#94a3b8;font-size:0.8rem;line-height:1.6">'
+            'A one-page checklist of fraud patterns found in your data: '
+            'suspicious IP addresses, high-risk customer IDs, landmark addresses, '
+            'and behavioural triggers. Share with your team or use it to screen new orders every week.'
+            '</div></div>',
+            unsafe_allow_html=True
         )
         st.caption("A checklist of fraud patterns from this analysis")
 
@@ -1597,7 +1783,7 @@ with tab3:
                 f'Policy Changes to Reduce Future Loss</div>'
                 f'<div style="display:flex;flex-direction:column;gap:8px">'
                 f'<div style="background:#080f1e;border-radius:6px;padding:10px 14px;border-left:3px solid #ef4444">'
-                f'<div style="color:#e2e8f0;font-size:0.87rem;font-weight:600">Add OTP for orders above Rs.{amount_threshold:,.0f}</div>'
+                f'<div style="color:#e2e8f0;font-size:0.87rem;font-weight:600">Add OTP for orders above {_fmt_inr(amount_threshold)}</div>'
                 f'<div style="color:#64748b;font-size:0.8rem;margin-top:2px">Reduces high-value COD fraud immediately</div></div>'
                 f'<div style="background:#080f1e;border-radius:6px;padding:10px 14px;border-left:3px solid #f59e0b">'
                 f'<div style="color:#e2e8f0;font-size:0.87rem;font-weight:600">Manual review for new COD buyers</div>'
@@ -1608,7 +1794,7 @@ with tab3:
                 f'<div style="background:#0a1628;border-radius:8px;padding:14px;margin-top:4px;border:1px solid #10b981">'
                 f'<div style="color:#64748b;font-size:0.77rem;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">Savings if implemented</div>'
                 f'<div style="font-size:1.45rem;font-weight:800;color:#10b981;font-family:monospace">'
-                f'Rs.{savings_low:,.0f} - Rs.{savings_high:,.0f}</div></div>'
+                f'{_fmt_inr(savings_low)} – {_fmt_inr(savings_high)}</div></div>'
                 f'</div></div>',
                 unsafe_allow_html=True
             )
