@@ -1190,6 +1190,8 @@ st.markdown("""
 .ss-stat {
     background: #0d1625; border-radius: 12px; padding: 20px 24px;
     border: 1px solid #1a2d4a;
+    min-height: 120px;
+    display: flex; flex-direction: column; justify-content: center;
 }
 .ss-stat-val {
     font-size: 2rem; font-weight: 800;
@@ -1540,6 +1542,16 @@ with tab1:
     with dl_c2:
         export_cols_s = [c for c in ["transaction_id","user_id","amount","fraud_score_pct","risk_label","payment_method","location"]
                          if c in high_risk_df.columns]
+        st.markdown(
+            '<div style="background:#0d1625;border:1px solid #1a2d4a;border-radius:10px;'
+            'padding:14px 18px;margin-bottom:10px">'
+            '<div style="color:#3b82f6;font-size:0.87rem;font-weight:700;margin-bottom:5px">'
+            'Flagged Orders (Excel)</div>'
+            '<div style="color:#94a3b8;font-size:0.8rem;line-height:1.6">'
+            'Complete list of all high-risk orders with fraud scores, '
+            'reasons, and amounts. Share with your operations team.</div></div>',
+            unsafe_allow_html=True
+        )
         st.download_button(
             "⬇️  Flagged Orders (Excel)",
             data=df_to_excel(high_risk_df[export_cols_s]),
@@ -1547,18 +1559,26 @@ with tab1:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
         )
-        st.caption("Full list with fraud scores")
 
     with dl_c3:
         html_report_s = _make_html_report(high_risk_df, scored, metrics)
+        st.markdown(
+            '<div style="background:#0d1625;border:1px solid #1a2d4a;border-radius:10px;'
+            'padding:14px 18px;margin-bottom:10px">'
+            '<div style="color:#10b981;font-size:0.87rem;font-weight:700;margin-bottom:5px">'
+            'Risk Report (PDF)</div>'
+            '<div style="color:#94a3b8;font-size:0.8rem;line-height:1.6">'
+            'Full analysis report with plain-language summary, actions, '
+            'flagged customers and transactions. Open in Chrome and print to PDF.</div></div>',
+            unsafe_allow_html=True
+        )
         st.download_button(
-            "⬇️  Risk Report (HTML→PDF)",
+            "⬇️  Risk Report (PDF)",
             data=html_report_s.encode("utf-8"),
             file_name="shipscan_report.html",
             mime="text/html",
             use_container_width=True,
         )
-        st.caption("Open in Chrome → Ctrl+P → Save as PDF")
 
     if REPORTLAB_OK:
         st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
@@ -1618,7 +1638,6 @@ with tab1:
             '</div></div>',
             unsafe_allow_html=True
         )
-        st.caption("A checklist of fraud patterns from this analysis")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1783,7 +1802,7 @@ with tab3:
         with dl2:
             html_report = _make_html_report(filtered, scored, metrics)
             st.download_button(
-                "⬇️  Download HTML Report (print as PDF)",
+                "⬇️  Download Report (PDF)",
                 data=html_report.encode("utf-8"),
                 file_name="shipscan_report.html",
                 mime="text/html",
