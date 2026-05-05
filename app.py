@@ -922,12 +922,16 @@ cod_high       = scored[(scored["risk_label"] == "High") & (scored["payment_meth
 # ── HELPER: generate HTML report (defined here to avoid triple-quote nesting) ─
 def _fmt_inr(amount):
     """Format a rupee amount in Indian units (L / Cr)."""
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        return "Rs.0"
     if amount >= 1_00_00_000:
         return f"Rs.{amount/1_00_00_000:.2f} Cr"
     elif amount >= 1_00_000:
         return f"Rs.{amount/1_00_000:.2f} L"
     else:
-        return f"{_fmt_inr(amount)}"
+        return f"Rs.{amount:,.0f}"
 
 def _make_html_report(df, scored_df, metrics):
     """Build a rich HTML report matching the ShipScan design — printable as PDF."""
@@ -1223,7 +1227,7 @@ with tab1:
     with h1:
         st.markdown(
             f'<div class="ss-stat">'
-            f'<div class="ss-stat-val" style="color:{colour};font-size:clamp(1rem,2.5vw,2.2rem)">{len(high_risk_df)}</div>'
+            f'<div class="ss-stat-val" style="color:{colour};font-size:2.2rem">{len(high_risk_df)}</div>'
             f'<div class="ss-stat-label">High-risk orders</div>'
             f'<div style="color:{colour};font-size:0.87rem;margin-top:6px">'
             f'{high_risk_pct:.1f}% of all orders</div></div>',
@@ -1232,7 +1236,7 @@ with tab1:
     with h2:
         st.markdown(
             f'<div class="ss-stat">'
-            f'<div class="ss-stat-val" style="color:#f59e0b;font-size:clamp(1rem,2.5vw,2.2rem)">{_fmt_inr(est_actual_loss)}</div>'
+            f'<div class="ss-stat-val" style="color:#f59e0b;font-size:2.2rem">{_fmt_inr(est_actual_loss)}</div>'
             f'<div class="ss-stat-label">Estimated money already lost</div>'
             f'<div style="color:#64748b;font-size:0.87rem;margin-top:6px">'
             f'40% of {_fmt_inr(amount_at_risk)} at risk</div></div>',
@@ -1241,7 +1245,7 @@ with tab1:
     with h3:
         st.markdown(
             f'<div class="ss-stat">'
-            f'<div class="ss-stat-val" style="color:#10b981;font-size:clamp(1rem,2.2vw,2rem)">{_fmt_inr(savings_low)} – {_fmt_inr(savings_high)}</div>'
+            f'<div style="color:#10b981;font-size:1.35rem;font-weight:800;font-family:monospace;line-height:1.2;margin-bottom:2px">{_fmt_inr(savings_low)} – {_fmt_inr(savings_high)}</div>'
             f'<div class="ss-stat-label">Recoverable going forward</div>'
             f'<div style="color:#64748b;font-size:0.87rem;margin-top:6px">'
             f'If you stop shipping to repeat offenders</div></div>',
