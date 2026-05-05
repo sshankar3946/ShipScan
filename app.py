@@ -8,6 +8,15 @@ import time
 from data_generator import generate_dataset
 from utils import run_feature_pipeline, load_file
 from model import run_detection
+try:
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors as rl_colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.units import mm
+    REPORTLAB_OK = True
+except ImportError:
+    REPORTLAB_OK = False
 
 st.set_page_config(
     page_title="ShipScan — Fraud & Data Analytics",
@@ -1240,6 +1249,104 @@ with tab1:
             )
 
 
+    st.markdown('<div class="ss-gap"></div>', unsafe_allow_html=True)
+
+    # ── DOWNLOADS ON SUMMARY PAGE ─────────────────────────────────────────────
+    st.markdown(
+        '<div style="color:#94a3b8;font-size:0.82rem;font-weight:700;'
+        'text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px">'
+        'Download your reports</div>',
+        unsafe_allow_html=True
+    )
+
+    dl_c1, dl_c2, dl_c3 = st.columns(3)
+
+    with dl_c1:
+        dns_export_cols_s = [c for c in ["user_id","location","amount","payment_method","fraud_score_pct"]
+                             if c in high_risk_df.columns]
+        dns_dl = high_risk_df[dns_export_cols_s].copy()
+        dns_dl.columns = [c.replace("_"," ").title() for c in dns_dl.columns]
+        st.download_button(
+            "⬇️  Do Not Ship List (CSV)",
+            data=dns_dl.to_csv(index=False),
+            file_name="shipscan_do_not_ship.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+        st.caption("Share with dispatch team")
+
+    with dl_c2:
+        export_cols_s = [c for c in ["transaction_id","user_id","amount","fraud_score_pct","risk_label","payment_method","location"]
+                         if c in high_risk_df.columns]
+        st.download_button(
+            "⬇️  Flagged Orders (Excel)",
+            data=df_to_excel(high_risk_df[export_cols_s]),
+            file_name="shipscan_flagged_orders.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
+        st.caption("Full list with fraud scores")
+
+    with dl_c3:
+        html_report_s = _make_html_report(high_risk_df, scored, metrics)
+        st.download_button(
+            "⬇️  Risk Report (HTML→PDF)",
+            data=html_report_s.encode("utf-8"),
+            file_name="shipscan_report.html",
+            mime="text/html",
+            use_container_width=True,
+        )
+        st.caption("Open in Chrome → Ctrl+P → Save as PDF")
+
+    if REPORTLAB_OK:
+        st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
+        _buf_s = BytesIO()
+        _doc_s = SimpleDocTemplate(_buf_s, pagesize=A4,
+                                   rightMargin=20*mm, leftMargin=20*mm,
+                                   topMargin=20*mm, bottomMargin=20*mm)
+        _styles = getSampleStyleSheet()
+        _h1 = ParagraphStyle("h1s", parent=_styles["Heading1"],
+                             textColor=rl_colors.white, fontSize=18, spaceAfter=4)
+        _h2 = ParagraphStyle("h2s", parent=_styles["Heading2"],
+                             textColor=rl_colors.HexColor("#3b82f6"), fontSize=12, spaceAfter=6)
+        _body = ParagraphStyle("bods", parent=_styles["Normal"],
+                               textColor=rl_colors.HexColor("#94a3b8"), fontSize=9, leading=14)
+        _story = [
+            Paragraph("ShipScan Fraud Fingerprint", _h1),
+            Paragraph(f"Generated from {len(scored):,} orders", _body),
+            Spacer(1, 8*mm),
+            Paragraph("Highest-Risk Customers", _h2),
+        ]
+        _top_users = scored[scored["risk_label"]=="High"]["user_id"].value_counts().head(10)
+        for _uid, _cnt in _top_users.items():
+            _story.append(Paragraph(f"• {_uid} — {_cnt} high-risk orders", _body))
+        _story.append(Spacer(1, 6*mm))
+        _story.append(Paragraph("Suspicious IP Addresses", _h2))
+        _sus_ips = scored[scored["ip_user_count"]>=3]["ip_address"].value_counts().head(10) if "ip_user_count" in scored.columns else pd.Series()
+        for _ip, _cnt in _sus_ips.items():
+            _story.append(Paragraph(f"• {_ip} — shared by {_cnt} accounts", _body))
+        if not len(_sus_ips):
+            _story.append(Paragraph("No suspicious IPs detected", _body))
+        _story.append(Spacer(1, 6*mm))
+        _story.append(Paragraph("Behavioural Patterns", _h2))
+        for _p in [
+            f"Velocity attacks: {n_velocity_att} orders in burst patterns",
+            f"New high-value COD: {n_new_high_val} first-time buyers, large COD",
+            f"Fraud rings: {n_fraud_ring} orders sharing addresses across 3+ accounts",
+        ]:
+            _story.append(Paragraph(f"• {_p}", _body))
+        _doc_s.build(_story)
+        _buf_s.seek(0)
+        st.download_button(
+            "⬇️  Fraud Fingerprint (PDF)",
+            data=_buf_s,
+            file_name="shipscan_fingerprint.pdf",
+            mime="application/pdf",
+            use_container_width=False,
+        )
+        st.caption("A checklist of fraud patterns from this analysis")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — CHARTS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1571,24 +1678,21 @@ with tab3:
             unsafe_allow_html=True
         )
 
-        if True:  # always generate
-            from reportlab.lib.pagesizes import A4
-            from reportlab.lib import colors
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-            from reportlab.lib.units import mm
+        if not REPORTLAB_OK:
+            st.error("PDF generation requires reportlab. Check requirements.txt.")
+        elif True:  # generate on load
 
             buf = BytesIO()
             doc = SimpleDocTemplate(buf, pagesize=A4,
                                     rightMargin=20*mm, leftMargin=20*mm,
                                     topMargin=20*mm, bottomMargin=20*mm)
             styles = getSampleStyleSheet()
-            dark_bg  = colors.HexColor("#0d1625")
-            red      = colors.HexColor("#ef4444")
-            amber    = colors.HexColor("#f59e0b")
-            blue     = colors.HexColor("#3b82f6")
-            white    = colors.white
-            grey     = colors.HexColor("#94a3b8")
+            dark_bg  = rl_colors.HexColor("#0d1625")
+            red      = rl_colors.HexColor("#ef4444")
+            amber    = rl_colors.HexColor("#f59e0b")
+            blue     = rl_colors.HexColor("#3b82f6")
+            white    = rl_colors.white
+            grey     = rl_colors.HexColor("#94a3b8")
 
             h1_style = ParagraphStyle("h1", parent=styles["Heading1"],
                                       textColor=white, fontSize=18, spaceAfter=4)
