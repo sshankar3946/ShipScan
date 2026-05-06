@@ -1085,7 +1085,7 @@ with tab1:
     with h3:
         st.markdown(
             f'<div class="ss-stat">'
-            f'<div class="ss-stat-val" style="color:#10b981">{_fmt_inr(savings_low)} - {_fmt_inr(savings_high)}</div>'
+            f'<div class="ss-stat-val" style="color:#10b981;font-size:1.35rem">{_fmt_inr(savings_low)} – {_fmt_inr(savings_high)}</div>'
             f'<div class="ss-stat-label">Recoverable going forward</div>'
             f'<div style="color:#64748b;font-size:0.82rem;margin-top:6px">'
             f'If you stop shipping to repeat offenders</div></div>',
@@ -1322,8 +1322,8 @@ with tab1:
                 '<div style="color:#8b5cf6;font-size:0.87rem;font-weight:700;margin-bottom:5px">'
                 'Fraud Fingerprint PDF</div>'
                 '<div style="color:#94a3b8;font-size:0.8rem;line-height:1.6">'
-                'Suspicious IPs, high-risk customer IDs, landmark addresses and behavioural '
-                'patterns — a weekly checklist for your dispatch team.</div></div>',
+                'Suspicious IPs, high-risk customer IDs and behavioural patterns. '
+                'Weekly checklist for your dispatch team.</div></div>',
                 unsafe_allow_html=True
             )
             st.download_button(
