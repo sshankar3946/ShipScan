@@ -1318,7 +1318,7 @@ with tab1:
             _buf_f.seek(0)
             st.markdown(
                 '<div style="background:#1a0f2d;border:1px solid #3d2a6a;border-radius:10px;'
-                'padding:14px 18px;margin-bottom:10px">'
+                'padding:14px 18px;margin-bottom:10px;min-height:90px">'
                 '<div style="color:#8b5cf6;font-size:0.87rem;font-weight:700;margin-bottom:5px">'
                 'Fraud Fingerprint PDF</div>'
                 '<div style="color:#94a3b8;font-size:0.8rem;line-height:1.6">'
@@ -1348,7 +1348,7 @@ with tab1:
             _txt += ["", "shipscan.in | contact@shipscan.in"]
             st.markdown(
                 '<div style="background:#1a0f2d;border:1px solid #3d2a6a;border-radius:10px;'
-                'padding:14px 18px;margin-bottom:10px">'
+                'padding:14px 18px;margin-bottom:10px;min-height:90px">'
                 '<div style="color:#8b5cf6;font-size:0.87rem;font-weight:700;margin-bottom:5px">'
                 'Fraud Fingerprint</div>'
                 '<div style="color:#94a3b8;font-size:0.8rem;line-height:1.6">'
@@ -1368,12 +1368,11 @@ with tab1:
                          if c in high_risk_df.columns]
         st.markdown(
             '<div style="background:#0d1625;border:1px solid #1a2d4a;border-radius:10px;'
-            'padding:14px 18px;margin-bottom:10px">'
+            'padding:14px 18px;margin-bottom:10px;min-height:90px">'
             '<div style="color:#3b82f6;font-size:0.87rem;font-weight:700;margin-bottom:5px">'
             'Flagged Orders (Excel)</div>'
             '<div style="color:#94a3b8;font-size:0.8rem;line-height:1.6">'
-            'Complete list of all high-risk orders with fraud scores and amounts. '
-            'Share with your operations team.</div></div>',
+            'Complete list of all high-risk orders with fraud scores and amounts.</div></div>',
             unsafe_allow_html=True
         )
         st.download_button(
@@ -1388,12 +1387,11 @@ with tab1:
         html_report_s = _make_html_report(high_risk_df, scored, metrics)
         st.markdown(
             '<div style="background:#0d1625;border:1px solid #1a2d4a;border-radius:10px;'
-            'padding:14px 18px;margin-bottom:10px">'
+            'padding:14px 18px;margin-bottom:10px;min-height:90px">'
             '<div style="color:#10b981;font-size:0.87rem;font-weight:700;margin-bottom:5px">'
             'Risk Report (PDF)</div>'
             '<div style="color:#94a3b8;font-size:0.8rem;line-height:1.6">'
-            'Full analysis report with plain-language summary, actions, '
-            'flagged customers and transactions.</div></div>',
+            'Full analysis with plain-language summary, actions and transactions.</div></div>',
             unsafe_allow_html=True
         )
         st.download_button(
