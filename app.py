@@ -1120,99 +1120,208 @@ with tab1:
         )
 
     # ── ORDERS REQUIRING REVIEW (PRIMARY TABLE) ───────────────────────────────
+
+    # Short reason translator
+    def _short_reason(row):
+        ip_c   = row.get("ip_user_count", 1)
+        addr_c = row.get("address_user_count", 1)
+        dev_c  = row.get("device_user_count", 1)
+        is_fst = row.get("is_first_txn", 0)
+        is_lnd = row.get("is_landmark_only", False)
+        txn_1h = row.get("txn_count_1h", 0)
+        amt    = row.get("amount", 0)
+        pay    = str(row.get("payment_method", "")).lower()
+        score  = row.get("fraud_score_pct", 0)
+        if addr_c >= 3:  return "Address reused across multiple buyers."
+        if ip_c >= 3:    return "Unusual buyer/address pattern."
+        if is_fst and amt > 1500 and "cod" in pay: return "New buyer, high-value COD."
+        if is_lnd:       return "Incomplete address — repeat delivery issue."
+        if dev_c >= 3:   return "Device linked to multiple accounts."
+        if txn_1h > 3:   return "Unusual order burst pattern."
+        if score >= 70:  return "Similar orders previously failed delivery."
+        return "Repeat issue pattern detected."
+
+    def _badge(row):
+        score = row.get("fraud_score_pct", 0)
+        pay   = str(row.get("payment_method", "")).lower()
+        if score >= 70:                              return "High COD Risk",      "#ef4444", "#2d0a0a"
+        if "cod" in pay and row.get("is_first_txn",0) == 1: return "High COD Risk", "#ef4444", "#2d0a0a"
+        if score >= 45:                              return "Requires Verification","#f59e0b", "#2d1a00"
+        return "Review Recommended", "#f59e0b", "#2d1a00"
+
+    def _rec_action(row):
+        score = row.get("fraud_score_pct", 0)
+        if score >= 70: return "Call before dispatch"
+        if score >= 45: return "Verify address"
+        return "Review order"
+
+    # Build review queue
+    review_df = scored[scored["risk_label"].isin(["High","Medium"])].sort_values(
+        "fraud_score_pct", ascending=False).head(50).reset_index(drop=True)
+
+    n_safe   = len(scored[scored["risk_label"] == "Low"])
+    n_verify = len(scored[scored["risk_label"] == "Medium"])
+    n_high   = len(scored[scored["risk_label"] == "High"])
+    cod_exposure = scored[scored["risk_label"].isin(["High","Medium"])]["amount"].sum()
+
+    # ── SUMMARY BAR ───────────────────────────────────────────────────────────
     st.markdown(
-        '<div style="color:#e2e8f0;font-size:1.05rem;font-weight:700;margin-bottom:4px">'
-        'Orders Requiring Review</div>'
-        '<div style="color:#64748b;font-size:0.82rem;margin-bottom:16px">'
-        'Check these orders before dispatch. Call the customer or hold the shipment.</div>',
+        f'<div style="background:#0a0f1e;border:1px solid #1a2d4a;border-radius:10px;'
+        f'padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;'
+        f'justify-content:space-between;flex-wrap:wrap;gap:12px">'
+        f'<div style="color:#e2e8f0;font-size:0.95rem;font-weight:700">Today\'s Dispatch Review</div>'
+        f'<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center">'
+        f'<span style="color:#10b981;font-size:0.85rem">✅ Safe to ship: <strong>{n_safe}</strong></span>'
+        f'<span style="color:#f59e0b;font-size:0.85rem">🟠 Verify before shipping: <strong>{n_verify}</strong></span>'
+        f'<span style="color:#ef4444;font-size:0.85rem">🔴 High COD risk: <strong>{n_high}</strong></span>'
+        f'<span style="color:#94a3b8;font-size:0.85rem;border-left:1px solid #1a2d4a;padding-left:16px">'
+        f'Potential COD exposure: <strong style="color:#f59e0b">{_fmt_inr(cod_exposure)}</strong></span>'
+        f'</div></div>',
         unsafe_allow_html=True
     )
 
-    review_df = scored[scored["risk_label"].isin(["High", "Medium"])].copy()
-    review_df = review_df.sort_values("fraud_score_pct", ascending=False).head(50)
-
     if len(review_df) == 0:
-        st.success("✅ All orders look safe to ship. No action required.")
+        st.success("✅ All orders are safe to ship. No action required today.")
     else:
-        # Session state for outcome feedback
         if "outcomes" not in st.session_state:
             st.session_state.outcomes = {}
-
-        # Table header
-        st.markdown(
-            '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 2.5fr 1.2fr 1.5fr;'
-            'gap:8px;padding:8px 12px;background:#0a0f1e;border-radius:8px 8px 0 0;'
-            'border:1px solid #1a2d4a;margin-bottom:1px">'
-            '<div style="color:#475569;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em">Order ID</div>'
-            '<div style="color:#475569;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em">Customer</div>'
-            '<div style="color:#475569;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em">Amount</div>'
-            '<div style="color:#475569;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em">Why Flagged</div>'
-            '<div style="color:#475569;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em">Confidence</div>'
-            '<div style="color:#475569;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em">Suggested Action</div>'
-            '</div>',
-            unsafe_allow_html=True
-        )
+        if "expanded" not in st.session_state:
+            st.session_state.expanded = {}
 
         for i, (_, row) in enumerate(review_df.iterrows()):
-            oid      = str(row.get("transaction_id", f"ORD{i+1}"))
-            uid      = str(row.get("user_id", "—"))[:12]
-            amt      = _fmt_inr(row.get("amount", 0))
-            reason   = _human_reason(row)
-            conf_lbl, conf_clr = _confidence(row.get("fraud_score_pct", 0))
-            action_lbl, action_clr = _action(row)
-            bg = "#0d1625" if i % 2 == 0 else "#0a1020"
-            outcome = st.session_state.outcomes.get(oid, "")
-            outcome_style = "opacity:0.5;" if outcome else ""
+            oid         = str(row.get("transaction_id", f"ORD{i+1}"))
+            uid         = str(row.get("user_id", "—"))[:14]
+            amt         = _fmt_inr(row.get("amount", 0))
+            short_rsn   = _short_reason(row)
+            rec_act     = _rec_action(row)
+            badge_lbl, badge_clr, badge_bg = _badge(row)
+            outcome     = st.session_state.outcomes.get(oid, "")
+            is_expanded = st.session_state.expanded.get(oid, False)
 
+            # Compressed row
+            row_bg = "#0d1625" if i % 2 == 0 else "#090d1a"
             st.markdown(
-                f'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 2.5fr 1.2fr 1.5fr;'
-                f'gap:8px;padding:10px 12px;background:{bg};{outcome_style}'
-                f'border-left:3px solid {action_clr};border-bottom:1px solid #0f172a;'
-                f'align-items:center">'
-                f'<div style="color:#94a3b8;font-size:0.8rem;font-family:monospace">{oid[:12]}</div>'
-                f'<div style="color:#e2e8f0;font-size:0.82rem">{uid}</div>'
-                f'<div style="color:#e2e8f0;font-size:0.82rem;font-weight:600">{amt}</div>'
-                f'<div style="color:#94a3b8;font-size:0.8rem;line-height:1.4">{reason}</div>'
-                f'<div style="color:{conf_clr};font-size:0.8rem;font-weight:700">{conf_lbl}</div>'
-                f'<div style="color:{action_clr};font-size:0.8rem;font-weight:700">{action_lbl}'
-                f'{" ✓" if outcome else ""}</div>'
-                f'</div>',
+                f'<div style="background:{row_bg};border-left:3px solid {badge_clr};'
+                f'border-radius:6px;padding:12px 16px;margin-bottom:2px;'
+                f'display:flex;align-items:center;justify-content:space-between;gap:12px;'
+                f'{"opacity:0.55;" if outcome else ""}">'
+
+                # Left: badge + order ID + amount
+                f'<div style="display:flex;align-items:center;gap:14px;min-width:320px">'
+                f'<div style="background:{badge_bg};color:{badge_clr};font-size:0.72rem;'
+                f'font-weight:700;padding:3px 8px;border-radius:4px;white-space:nowrap">'
+                f'{badge_lbl}</div>'
+                f'<div style="font-family:monospace;color:#94a3b8;font-size:0.82rem">{oid[:14]}</div>'
+                f'<div style="color:#e2e8f0;font-size:0.85rem;font-weight:600">{amt}</div>'
+                f'</div>'
+
+                # Middle: short reason
+                f'<div style="color:#64748b;font-size:0.82rem;flex:1">{short_rsn}</div>'
+
+                # Right: recommended action + outcome tag
+                f'<div style="display:flex;align-items:center;gap:10px;flex-shrink:0">'
+                f'<div style="color:{badge_clr};font-size:0.82rem;font-weight:600">{rec_act}</div>'
+                + (f'<div style="color:#475569;font-size:0.75rem;font-style:italic">{outcome}</div>' if outcome else '')
+                + f'</div></div>',
                 unsafe_allow_html=True
             )
 
-            # Outcome feedback buttons (compact, inline)
-            if outcome:
-                st.caption(f"  Recorded: {outcome}")
-            else:
-                fb_cols = st.columns([1,1,1,1,3])
-                with fb_cols[0]:
-                    if st.button("✅ Genuine", key=f"gen_{oid}_{i}", use_container_width=True):
-                        st.session_state.outcomes[oid] = "Called — Genuine"
+            # Expand/collapse button
+            expand_cols = st.columns([6, 1])
+            with expand_cols[1]:
+                btn_label = "▲ Close" if is_expanded else "Review →"
+                if st.button(btn_label, key=f"exp_{oid}_{i}", use_container_width=True):
+                    st.session_state.expanded[oid] = not is_expanded
+                    st.rerun()
+
+            # Expanded detail panel
+            if is_expanded:
+                pay     = str(row.get("payment_method","—"))
+                loc     = str(row.get("location","—"))
+                ip_c    = int(row.get("ip_user_count",1))
+                addr_c  = int(row.get("address_user_count",1))
+                is_fst  = row.get("is_first_txn",0)
+
+                signals = []
+                if addr_c >= 3: signals.append(f"Address used by {addr_c} different accounts")
+                if ip_c >= 3:   signals.append(f"IP linked to {ip_c} different buyers")
+                if is_fst:      signals.append("First-time buyer")
+                if row.get("is_landmark_only",False): signals.append("Incomplete address")
+                if int(row.get("txn_count_1h",0)) > 3: signals.append("Unusual order frequency")
+                if not signals: signals.append("Pattern matches past delivery failures")
+
+                signals_html = "".join(
+                    f'<div style="background:#080f1e;border-radius:4px;padding:5px 10px;'
+                    f'color:#94a3b8;font-size:0.78rem;margin-bottom:4px">• {s}</div>'
+                    for s in signals
+                )
+
+                st.markdown(
+                    f'<div style="background:#0a1020;border:1px solid #1a2d4a;border-radius:0 0 8px 8px;'
+                    f'padding:16px 20px;margin-bottom:8px;margin-top:-2px">'
+                    f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">'
+
+                    # Left: signals
+                    f'<div>'
+                    f'<div style="color:#475569;font-size:0.72rem;font-weight:700;text-transform:uppercase;'
+                    f'letter-spacing:0.08em;margin-bottom:8px">Why this was flagged</div>'
+                    f'{signals_html}'
+                    f'<div style="margin-top:10px;color:#475569;font-size:0.72rem;font-weight:700;'
+                    f'text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Order details</div>'
+                    f'<div style="color:#64748b;font-size:0.8rem">Payment: {pay}</div>'
+                    f'<div style="color:#64748b;font-size:0.8rem">Location: {loc}</div>'
+                    f'<div style="color:#64748b;font-size:0.8rem">Customer: {uid}</div>'
+                    f'</div>'
+
+                    # Right: suggested step + outcome buttons
+                    f'<div>'
+                    f'<div style="color:#475569;font-size:0.72rem;font-weight:700;text-transform:uppercase;'
+                    f'letter-spacing:0.08em;margin-bottom:8px">Suggested next step</div>'
+                    f'<div style="background:#080f1e;border-left:3px solid {badge_clr};border-radius:4px;'
+                    f'padding:8px 12px;color:{badge_clr};font-size:0.85rem;font-weight:600;margin-bottom:14px">'
+                    f'{rec_act}</div>'
+                    f'<div style="color:#475569;font-size:0.72rem;font-weight:700;text-transform:uppercase;'
+                    f'letter-spacing:0.08em;margin-bottom:8px">Record outcome</div>',
+                    unsafe_allow_html=True
+                )
+
+                # Outcome buttons inside panel
+                ob1, ob2, ob3, ob4 = st.columns(4)
+                with ob1:
+                    if st.button("✅ Genuine", key=f"g_{oid}_{i}", use_container_width=True):
+                        st.session_state.outcomes[oid] = "Genuine"
+                        st.session_state.expanded[oid] = False
                         st.rerun()
-                with fb_cols[1]:
-                    if st.button("⚠️ Suspicious", key=f"sus_{oid}_{i}", use_container_width=True):
-                        st.session_state.outcomes[oid] = "Called — Suspicious"
+                with ob2:
+                    if st.button("⚠️ Suspicious", key=f"s_{oid}_{i}", use_container_width=True):
+                        st.session_state.outcomes[oid] = "Suspicious"
+                        st.session_state.expanded[oid] = False
                         st.rerun()
-                with fb_cols[2]:
-                    if st.button("📦 Returned", key=f"ret_{oid}_{i}", use_container_width=True):
+                with ob3:
+                    if st.button("📦 Returned", key=f"r_{oid}_{i}", use_container_width=True):
                         st.session_state.outcomes[oid] = "Returned"
+                        st.session_state.expanded[oid] = False
                         st.rerun()
-                with fb_cols[3]:
-                    if st.button("🚚 Delivered", key=f"del_{oid}_{i}", use_container_width=True):
+                with ob4:
+                    if st.button("🚚 Delivered", key=f"d_{oid}_{i}", use_container_width=True):
                         st.session_state.outcomes[oid] = "Delivered"
+                        st.session_state.expanded[oid] = False
                         st.rerun()
+
+                st.markdown('</div></div></div>', unsafe_allow_html=True)
 
         # Outcome summary
         if st.session_state.outcomes:
             _tot = len(st.session_state.outcomes)
-            _sus = sum(1 for v in st.session_state.outcomes.values() if "Suspicious" in v)
-            _gen = sum(1 for v in st.session_state.outcomes.values() if "Genuine" in v)
+            _sus = sum(1 for v in st.session_state.outcomes.values() if v == "Suspicious")
+            _gen = sum(1 for v in st.session_state.outcomes.values() if v == "Genuine")
             st.markdown(
-                f'<div style="background:#0a1020;border-radius:0 0 8px 8px;padding:10px 14px;'
-                f'border:1px solid #1a2d4a;border-top:none;margin-bottom:16px">'
-                f'<span style="color:#64748b;font-size:0.8rem">You reviewed {_tot} orders — '
-                f'<span style="color:#ef4444">{_sus} suspicious</span>, '
-                f'<span style="color:#10b981">{_gen} genuine</span></span></div>',
+                f'<div style="background:#0a0f1e;border-radius:8px;padding:10px 16px;'
+                f'margin-top:8px;border:1px solid #1a2d4a">'
+                f'<span style="color:#64748b;font-size:0.82rem">Reviewed {_tot} orders — </span>'
+                f'<span style="color:#ef4444;font-size:0.82rem">{_sus} suspicious</span>'
+                f'<span style="color:#64748b;font-size:0.82rem">, </span>'
+                f'<span style="color:#10b981;font-size:0.82rem">{_gen} genuine</span></div>',
                 unsafe_allow_html=True
             )
 
@@ -1220,36 +1329,36 @@ with tab1:
         st.markdown('<div style="height:16px"></div>', unsafe_allow_html=True)
         _dl1, _dl2 = st.columns(2)
         with _dl1:
-            _verify_cols = [c for c in ["transaction_id","user_id","amount","payment_method","location"]
-                            if c in review_df.columns]
-            _verify_export = review_df[_verify_cols].copy()
-            _verify_export["Suggested Action"] = review_df.apply(lambda r: _action(r)[0], axis=1)
-            _verify_export["Why Flagged"]      = review_df.apply(_human_reason, axis=1)
-            _verify_export.columns = [c.replace("_"," ").title() if c in _verify_cols else c
-                                       for c in _verify_export.columns]
+            _vcols = [c for c in ["transaction_id","user_id","amount","payment_method","location"]
+                      if c in review_df.columns]
+            _vexp = review_df[_vcols].copy()
+            _vexp["Suggested Action"] = review_df.apply(lambda r: _rec_action(r), axis=1)
+            _vexp["Reason"]           = review_df.apply(_short_reason, axis=1)
             st.download_button(
                 "⬇️  Today's Verification List (CSV)",
-                data=_verify_export.to_csv(index=False),
+                data=_vexp.to_csv(index=False),
                 file_name="shipscan_verification_list.csv",
                 mime="text/csv",
                 use_container_width=True,
             )
-            st.caption("Share with your dispatch team before shipping")
+            st.caption("Share with dispatch team before shipping")
         with _dl2:
-            _dispatch_export = review_df[["transaction_id"] if "transaction_id" in review_df.columns else []].copy()
-            _dispatch_export["Customer"] = review_df["user_id"].astype(str).str[:12] if "user_id" in review_df.columns else "—"
-            _dispatch_export["Action"]   = review_df.apply(lambda r: _action(r)[0], axis=1)
+            _dexp = pd.DataFrame({
+                "Order ID": review_df.get("transaction_id", pd.Series()),
+                "Customer": review_df.get("user_id", pd.Series()).astype(str).str[:14],
+                "Action":   review_df.apply(lambda r: _rec_action(r), axis=1),
+            })
             st.download_button(
                 "⬇️  Dispatch Checklist (CSV)",
-                data=_dispatch_export.to_csv(index=False),
+                data=_dexp.to_csv(index=False),
                 file_name="dispatch_checklist_today.csv",
                 mime="text/csv",
                 use_container_width=True,
             )
-            st.caption("Print this and give to your packing team")
+            st.caption("Print and give to packing team")
 
-    st.markdown('<div class="ss-gap"></div>', unsafe_allow_html=True)
 
+    
     # ── WHAT TO DO NOW (simplified 3 steps) ──────────────────────────────────
     st.markdown(
         '<div style="background:#0d1625;border-radius:12px;padding:20px 24px;'
@@ -1730,8 +1839,8 @@ with tab3:
                 unsafe_allow_html=True
             )
             dns_export_cols = [c for c in ["user_id", "location", "amount", "payment_method", "fraud_score_pct"]
-                               if c in top_dns.columns]
-            dns_export = top_dns[dns_export_cols].copy()
+                               if c in high_risk_df.columns]
+            dns_export = high_risk_df[dns_export_cols].head(15).copy()
             dns_export.columns = [c.replace("_", " ").title() for c in dns_export.columns]
             st.download_button(
                 "⬇️  Download CSV",
